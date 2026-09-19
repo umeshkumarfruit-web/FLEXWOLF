@@ -1,0 +1,81 @@
+﻿{
+  "id": "gid://shopify/Product/1",
+  "handle": "flex-tee",
+  "title": "Flex Tee",
+  "description": "Training tee",
+  "descriptionHtml": "<p>Training tee</p>",
+  "productType": "Tee",
+  "vendor": "FLEXWOLF",
+  "tags": ["NEW", "APP EXCLUSIVE"],
+  "availableForSale": true,
+  "updatedAt": "2026-08-31T12:00:00Z",
+  "featuredImage": {
+    "url": "https://cdn.example.test/flex-tee.jpg",
+    "altText": "Flex Tee front",
+    "width": 1200,
+    "height": 1600
+  },
+  "images": {
+    "nodes": [
+      {
+        "url": "https://cdn.example.test/flex-tee.jpg",
+        "altText": "Flex Tee front",
+        "width": 1200,
+        "height": 1600
+      }
+    ]
+  },
+  "media": {
+    "nodes": [
+      {
+        "id": "gid://shopify/MediaImage/1",
+        "mediaContentType": "IMAGE",
+        "image": {
+          "url": "https://cdn.example.test/flex-tee.jpg",
+          "altText": "Flex Tee front",
+          "width": 1200,
+          "height": 1600
+        }
+      },
+      {
+        "id": "gid://shopify/Video/1",
+        "mediaContentType": "VIDEO",
+        "previewImage": {
+          "url": "https://cdn.example.test/flex-tee-video.jpg",
+          "altText": "Flex Tee video preview"
+        }
+      }
+    ]
+  },
+  "options": [
+    {"id": "gid://shopify/ProductOption/1", "name": "Color", "values": ["Black", "Green"]},
+    {"id": "gid://shopify/ProductOption/2", "name": "Size", "values": ["S", "M", "L"]}
+  ],
+  "variants": {
+    "nodes": [
+      {
+        "id": "gid://shopify/ProductVariant/1",
+        "title": "Black / M",
+        "sku": "FW-TEE-BLK-M",
+        "availableForSale": true,
+        "quantityAvailable": 8,
+        "currentlyNotInStock": false,
+        "selectedOptions": [
+          {"name": "Color", "value": "Black"},
+          {"name": "Size", "value": "M"}
+        ],
+        "price": {"amount": "39.95", "currencyCode": "USD"},
+        "compareAtPrice": {"amount": "49.95", "currencyCode": "USD"},
+        "image": {"url": "https://cdn.example.test/flex-tee-black.jpg", "altText": "Black Flex Tee"}
+      }
+    ]
+  },
+  "metafields": [
+    {"namespace": "custom", "key": "fabric", "type": "single_line_text_field", "value": "Cotton blend"}
+  ],
+  "collections": {
+    "nodes": [
+      {"id": "gid://shopify/Collection/1"}
+    ]
+  }
+}

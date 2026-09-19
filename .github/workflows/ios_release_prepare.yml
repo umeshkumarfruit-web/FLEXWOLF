@@ -1,0 +1,49 @@
+name: iOS Release Prepare
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  quality:
+    uses: ./.github/workflows/flutter_quality.yml
+
+  ios-prepare:
+    name: Prepare iOS release build
+    runs-on: macos-latest
+    needs: quality
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Prepare unsigned iOS artifact
+        run: flutter build ios --release --no-codesign
+
+      - name: Upload iOS app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: flexwolf-ios-unsigned
+          if-no-files-found: error
+          retention-days: 14
+          path: build/ios/iphoneos/Runner.app

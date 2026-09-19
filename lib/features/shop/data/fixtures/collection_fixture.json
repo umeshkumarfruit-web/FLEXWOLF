@@ -1,0 +1,28 @@
+﻿{
+  "id": "gid://shopify/Collection/1",
+  "handle": "new-arrivals",
+  "title": "New Arrivals",
+  "description": "Latest FLEXWOLF gear",
+  "image": {
+    "url": "https://cdn.example.test/new-arrivals.jpg",
+    "altText": "New Arrivals"
+  },
+  "products": {
+    "nodes": [
+      {
+        "id": "gid://shopify/Product/1",
+        "handle": "flex-tee",
+        "title": "Flex Tee",
+        "availableForSale": true,
+        "variants": {"nodes": []},
+        "images": {"nodes": []},
+        "media": {"nodes": []},
+        "options": []
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": true,
+      "endCursor": "cursor-1"
+    }
+  }
+}

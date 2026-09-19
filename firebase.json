@@ -1,0 +1,40 @@
+﻿{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
+  "auth": {
+    "providers": {
+      "emailPassword": true
+    }
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "flexwolf-mobile-app",
+          "appId": "1:400219173854:android:7b8175c63a7acf11e3e34f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "flexwolf-mobile-app",
+          "configurations": {
+            "android": "1:400219173854:android:7b8175c63a7acf11e3e34f",
+            "ios": "1:400219173854:ios:9cb48e607afab90ae3e34f"
+          }
+        }
+      }
+    }
+  }
+}
