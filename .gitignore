@@ -63,6 +63,8 @@ android/key.properties
 android/local.properties
 local.properties
 ios/Flutter/Generated.xcconfig
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
 
 *.crt
 *.cer
@@ -75,4 +77,9 @@ firebase_options.dart
 /android/.kotlin/
 /android/build/
 /functions/node_modules/
+/flexwolf_error.png
+/flexwolf_error_small.jpg
+/live_product_diagnostic.json
+/live_product_diagnostic.js
+/test/_diagnostic_live_product_test.dart
 

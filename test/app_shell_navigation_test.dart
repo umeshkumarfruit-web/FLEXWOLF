@@ -36,7 +36,7 @@ void main() {
     for (final section in AppMainNavigationBar.sections) {
       expect(find.text(section.label), findsOneWidget);
     }
-    expect(find.text('FLEXWOLF'), findsWidgets);
+    expect(find.textContaining('Summer Sale Up to 45% off'), findsOneWidget);
   });
 
   testWidgets('hamburger menu lets the customer switch dark and light themes', (
@@ -73,10 +73,7 @@ void main() {
 
       await tester.tap(find.text('Shop'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Performance essentials from FLEXWOLF.'),
-        findsOneWidget,
-      );
+      expect(find.text('All Products'), findsOneWidget);
 
       await tester.tap(find.text('Account'));
       await tester.pumpAndSettle();
@@ -84,7 +81,7 @@ void main() {
 
       await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
-      expect(find.text('FLEXWOLF'), findsWidgets);
+      expect(find.textContaining('Summer Sale Up to 45% off'), findsOneWidget);
     },
   );
 
@@ -95,7 +92,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Search FLEXWOLF'));
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(TextField, 'Search products'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Search for...'), findsOneWidget);
   });
 
   testWidgets(

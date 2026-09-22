@@ -5,6 +5,8 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
+const { getMessaging } = require("firebase-admin/messaging");
 
 initializeApp();
 
@@ -13,9 +15,8 @@ const shopifyStoreDomain = defineString("SHOPIFY_STORE_DOMAIN");
 const shopifyApiKey = defineString("SHOPIFY_API_KEY");
 const shopifyApiSecret = defineSecret("SHOPIFY_API_SECRET");
 const shopifyScopes = defineString("SHOPIFY_SCOPES", {
-  default: "read_products,write_products,read_customers,write_customers",
+  default: "read_products,write_products,read_orders,read_customers,write_customers",
 });
-const shopifyAdminAccessToken = defineSecret("SHOPIFY_ADMIN_ACCESS_TOKEN");
 const shopifyAdminApiVersion = defineString("SHOPIFY_ADMIN_API_VERSION", {
   default: "2026-07",
 });
@@ -43,7 +44,7 @@ exports.health = onRequest({ region }, (request, response) => {
 });
 
 exports.syncCustomerAccount = onCall(
-  { region, secrets: [shopifyAdminAccessToken] },
+  { region, secrets: [shopifyApiSecret] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in before syncing an account.");
@@ -97,7 +98,8 @@ exports.syncCustomerAccount = onCall(
 );
 
 
-exports.shopifyAuthStart = onRequest({ region }, (request, response) => {
+exports.shopifyAuthStart = onRequest({ region }, async (request, response) => {
+  if (!await requireAdminRequest(request, response)) return;
   setCors(response);
   if (request.method === "OPTIONS") {
     response.status(204).send("");
@@ -179,11 +181,11 @@ exports.shopifyAuthCallback = onRequest({ region, secrets: [shopifyApiSecret] },
 
     response.json({
       shop: domain,
-      accessToken: maybeRevealToken(payload.access_token),
+      accessToken: "redacted",
       accessTokenLast4: last4(payload.access_token),
       scope: payload.scope,
       expiresIn: payload.expires_in,
-      refreshToken: maybeRevealToken(payload.refresh_token),
+      refreshToken: "redacted",
       refreshTokenExpiresIn: payload.refresh_token_expires_in,
       note: tokenRevealNote(),
     });
@@ -196,12 +198,7 @@ exports.shopifyAuthCallback = onRequest({ region, secrets: [shopifyApiSecret] },
 });
 
 exports.shopifyGenerateAdminAccessToken = onRequest({ region, secrets: [shopifyApiSecret] }, async (request, response) => {
-  setCors(response);
-  if (request.method === "OPTIONS") {
-    response.status(204).send("");
-    return;
-  }
-
+  if (!await requireAdminRequest(request, response)) return;
   if (request.method !== "POST") {
     response.status(405).json({ error: "method_not_allowed" });
     return;
@@ -247,8 +244,8 @@ exports.shopifyGenerateAdminAccessToken = onRequest({ region, secrets: [shopifyA
   }
 });
 
-exports.shopifyProducts = onRequest({ region, secrets: [shopifyAdminAccessToken] }, async (request, response) => {
-  setCors(response);
+exports.shopifyProducts = onRequest({ region, secrets: [shopifyApiSecret] }, async (request, response) => {
+  if (!await requireAdminRequest(request, response)) return;
   if (request.method === "OPTIONS") {
     response.status(204).send("");
     return;
@@ -292,8 +289,8 @@ exports.shopifyProducts = onRequest({ region, secrets: [shopifyAdminAccessToken]
   await proxyAdminGraphql(response, query, { first });
 });
 
-exports.shopifyAdminGraphql = onRequest({ region, secrets: [shopifyAdminAccessToken] }, async (request, response) => {
-  setCors(response);
+exports.shopifyAdminGraphql = onRequest({ region, secrets: [shopifyApiSecret] }, async (request, response) => {
+  if (!await requireAdminRequest(request, response)) return;
   if (request.method === "OPTIONS") {
     response.status(204).send("");
     return;
@@ -313,15 +310,188 @@ exports.shopifyAdminGraphql = onRequest({ region, secrets: [shopifyAdminAccessTo
   await proxyAdminGraphql(response, query, variables || {});
 });
 
+async function requireAdminRequest(request, response) {
+  setCors(response);
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return false;
+  }
+  const match = /^Bearer (.+)$/i.exec(request.get("authorization") || "");
+  if (!match) {
+    response.status(401).json({ error: "admin_auth_required" });
+    return false;
+  }
+  try {
+    const claims = await getAuth().verifyIdToken(match[1], true);
+    if (claims.admin !== true) {
+      response.status(403).json({ error: "admin_role_required" });
+      return false;
+    }
+    return true;
+  } catch (_) {
+    response.status(401).json({ error: "invalid_admin_token" });
+    return false;
+  }
+}
+
+
+function requireCallableAdmin(request) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in as admin.");
+  if (request.auth.token.admin !== true) {
+    throw new HttpsError("permission-denied", "Admin access required.");
+  }
+}
+
+function checkedPrice(value) {
+  const price = Number(value);
+  if (!Number.isFinite(price) || price <= 0 || price > 10000000) {
+    throw new HttpsError("invalid-argument", "Enter a valid positive price.");
+  }
+  return price.toFixed(2);
+}
+
+function checkedGid(value, type) {
+  const id = String(value || "");
+  if (!new RegExp("^gid://shopify/" + type + "/[0-9]+$").test(id)) {
+    throw new HttpsError("invalid-argument", "Invalid Shopify " + type + " ID.");
+  }
+  return id;
+}
+
+function shopifyMutationResult(data, field) {
+  const result = data[field];
+  if (!result || result.userErrors?.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      result?.userErrors?.map((e) => e.message).join("; ") || "Shopify rejected the change.",
+    );
+  }
+  return result;
+}
+
+exports.adminOperations = onCall(
+  { region, secrets: [shopifyApiSecret] },
+  async (request) => {
+    requireCallableAdmin(request);
+    const action = String(request.data?.action || "");
+    if (action === "products") {
+      const data = await callShopifyAdminGraphql(
+        `query { products(first: 30, sortKey: UPDATED_AT, reverse: true) {
+          nodes { id title status variants(first: 20) { nodes { id title price } } }
+        } }`, {},
+      );
+      return { items: data.products?.nodes || [] };
+    }
+    if (action === "orders") {
+      const data = await callShopifyAdminGraphql(
+        `query { orders(first: 30, sortKey: CREATED_AT, reverse: true) {
+          nodes { id name createdAt displayFinancialStatus displayFulfillmentStatus
+            totalPriceSet { shopMoney { amount currencyCode } } }
+        } }`, {},
+      );
+      return { items: data.orders?.nodes || [] };
+    }
+    if (action === "users") {
+      const page = await getAuth().listUsers(100);
+      return { items: page.users.map((u) => ({
+        uid: u.uid, email: u.email || "", disabled: u.disabled,
+      })) };
+    }
+    if (action === "createProduct") {
+      const title = cleanOptionalText(request.data?.title, 180);
+      if (!title) throw new HttpsError("invalid-argument", "Product title is required.");
+      const price = checkedPrice(request.data?.price);
+      // Create as draft so a failed price update never publishes a free item.
+      const created = shopifyMutationResult(await callShopifyAdminGraphql(
+        `mutation ($product: ProductCreateInput!) {
+          productCreate(product: $product) {
+            product { id title status variants(first: 1) { nodes { id } } }
+            userErrors { field message }
+          }
+        }`,
+        { product: { title, status: "DRAFT" } },
+      ), "productCreate").product;
+      const variantId = created?.variants?.nodes?.[0]?.id;
+      if (!variantId) {
+        throw new HttpsError("failed-precondition", "Product draft created, but no default variant was returned. Check Shopify Admin.");
+      }
+      shopifyMutationResult(await callShopifyAdminGraphql(
+        `mutation ($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            product { id } userErrors { field message }
+          }
+        }`,
+        { productId: created.id, variants: [{ id: variantId, price }] },
+      ), "productVariantsBulkUpdate");
+      await recordAdminAction(request, action, { productId: created.id });
+      return { product: created, price, status: "DRAFT" };
+    }
+    if (action === "updatePrice") {
+      const productId = checkedGid(request.data?.productId, "Product");
+      const variantId = checkedGid(request.data?.variantId, "ProductVariant");
+      const price = checkedPrice(request.data?.price);
+      shopifyMutationResult(await callShopifyAdminGraphql(
+        `mutation ($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            product { id } userErrors { field message }
+          }
+        }`,
+        { productId, variants: [{ id: variantId, price }] },
+      ), "productVariantsBulkUpdate");
+      await recordAdminAction(request, action, { productId, variantId, price });
+      return { ok: true };
+    }
+    if (action === "sendPush") {
+      const title = cleanOptionalText(request.data?.title, 100);
+      const body = cleanOptionalText(request.data?.body, 500);
+      if (!title || !body) {
+        throw new HttpsError("invalid-argument", "Title and message are required.");
+      }
+      const messageId = await getMessaging().send({
+        topic: "flexwolf_customers",
+        notification: { title, body },
+      });
+      await recordAdminAction(request, action, { messageId, title });
+      return { messageId };
+    }
+    throw new HttpsError("invalid-argument", "Unknown admin action.");
+  },
+);
+
+exports.registerCustomerPush = onCall({ region }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in first.");
+  const token = String(request.data?.token || "");
+  if (token.length < 20 || token.length > 4096) {
+    throw new HttpsError("invalid-argument", "Invalid push token.");
+  }
+  await getMessaging().subscribeToTopic([token], "flexwolf_customers");
+  return { ok: true };
+});
+
+exports.removeCustomerPush = onCall({ region }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in first.");
+  const token = String(request.data?.token || "");
+  if (token.length >= 20 && token.length <= 4096) {
+    await getMessaging().unsubscribeFromTopic([token], "flexwolf_customers");
+  }
+  return { ok: true };
+});
+
+async function recordAdminAction(request, action, details) {
+  await getFirestore().collection("adminAudit").add({
+    uid: request.auth.uid,
+    action,
+    details,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
 async function proxyAdminGraphql(response, query, variables) {
   let endpoint;
   let token;
   try {
     const domain = requiredParam(shopifyStoreDomain, "SHOPIFY_STORE_DOMAIN");
-    token = requiredParam(
-      shopifyAdminAccessToken,
-      "SHOPIFY_ADMIN_ACCESS_TOKEN",
-    );
+    token = await getShopifyAdminAccessToken();
     const apiVersion = shopifyAdminApiVersion.value();
     endpoint = `https://${normalizeShopDomain(domain)}/admin/api/${apiVersion}/graphql.json`;
   } catch (error) {
@@ -390,14 +560,51 @@ async function findOrCreateShopifyCustomer({ email, firstName, lastName }) {
   return result.customer;
 }
 
+
+let cachedShopifyToken;
+let cachedShopifyTokenExpiry = 0;
+
+async function getShopifyAdminAccessToken() {
+  if (cachedShopifyToken && Date.now() < cachedShopifyTokenExpiry) {
+    return cachedShopifyToken;
+  }
+  const domain = normalizeShopDomain(
+    requiredParam(shopifyStoreDomain, "SHOPIFY_STORE_DOMAIN"),
+  );
+  const clientId = requiredParam(shopifyApiKey, "SHOPIFY_API_KEY");
+  const clientSecret = requiredParam(shopifyApiSecret, "SHOPIFY_API_SECRET");
+  let response;
+  try {
+    response = await fetch(`https://${domain}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+  } catch (_) {
+    throw new HttpsError("unavailable", "Shopify token service is unavailable.");
+  }
+  const payload = await response.json();
+  if (!response.ok || typeof payload.access_token !== "string") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Shopify client credentials grant failed. Check app installation and scopes.",
+    );
+  }
+  cachedShopifyToken = payload.access_token;
+  cachedShopifyTokenExpiry = Date.now() +
+    Math.max(60, Number(payload.expires_in || 3600) - 300) * 1000;
+  return cachedShopifyToken;
+}
+
 async function callShopifyAdminGraphql(query, variables) {
   const domain = normalizeShopDomain(
     requiredParam(shopifyStoreDomain, "SHOPIFY_STORE_DOMAIN"),
   );
-  const token = requiredParam(
-    shopifyAdminAccessToken,
-    "SHOPIFY_ADMIN_ACCESS_TOKEN",
-  );
+  const token = await getShopifyAdminAccessToken();
   const endpoint = `https://${domain}/admin/api/${shopifyAdminApiVersion.value()}/graphql.json`;
   let shopifyResponse;
   try {

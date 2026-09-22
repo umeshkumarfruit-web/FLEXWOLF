@@ -256,10 +256,7 @@ class PushAwareCustomerAccountRepository implements CustomerAccountRepository {
 
   @override
   Future<void> logout() async {
-    try {
-      await delegate.logout();
-    } finally {
-      await _syncNotifications(notifications.removeRegistration);
-    }
+    await _syncNotifications(notifications.removeRegistration);
+    await delegate.logout();
   }
 }

@@ -2,6 +2,8 @@ import 'package:flexwolf/core/design/design_tokens.dart';
 import 'package:flexwolf/core/security/security_policy.dart';
 import 'package:flexwolf/core/widgets/app_image_container.dart';
 import 'package:flexwolf/core/widgets/app_loading_indicator.dart';
+import 'package:flexwolf/core/widgets/shopify_image_url.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class AppRemoteImage extends StatelessWidget {
@@ -36,27 +38,19 @@ class AppRemoteImage extends StatelessWidget {
       aspectRatio: aspectRatio,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return Image.network(
-            imageUrl,
+          final decodeWidth = _cacheWidthFor(context, constraints);
+          return CachedNetworkImage(
+            imageUrl: shopifyImageUrlForWidth(imageUrl, decodeWidth ?? 720),
             fit: BoxFit.cover,
-            semanticLabel: semanticLabel,
-            cacheWidth: _cacheWidthFor(context, constraints),
-            filterQuality: FilterQuality.medium,
-            gaplessPlayback: true,
-            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded || frame != null) {
-                return child;
-              }
-              return const AppSkeletonLoader();
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return const Center(
-                child: Icon(
-                  Icons.image_not_supported_outlined,
-                  size: AppIconSizes.lg,
-                ),
-              );
-            },
+            memCacheWidth: decodeWidth,
+            filterQuality: FilterQuality.low,
+            useOldImageOnUrlChange: true,
+            fadeInDuration: Duration.zero,
+            fadeOutDuration: Duration.zero,
+            placeholder: (context, url) => const AppSkeletonLoader(),
+            errorWidget: (context, url, error) => const Center(
+              child: Icon(Icons.image_not_supported_outlined, size: AppIconSizes.lg),
+            ),
           );
         },
       ),

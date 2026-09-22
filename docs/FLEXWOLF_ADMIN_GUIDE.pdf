@@ -1,0 +1,192 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [ 6 0 R 8 0 R ] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 3942 >>
+stream
+BT
+/F1 9 Tf
+50 800 Td
+13 TL
+/F2 10 Tf
+(FLEXWOLF - Admin and Mobile Operations Guide) Tj T*
+/F1 9 Tf
+(Updated 22 September 2026) Tj T*
+/F1 9 Tf
+() Tj T*
+/F2 10 Tf
+(CURRENT DELIVERY) Tj T*
+/F1 9 Tf
+(Customer sign up, login and logout use Firebase Authentication in the mobile app.) Tj T*
+/F1 9 Tf
+(An account is required before adding a product to the bag or opening checkout.) Tj T*
+/F1 9 Tf
+(Shopify Checkout Kit opens payment inside the Android app. The iOS bridge is pending.) Tj T*
+/F1 9 Tf
+(Loox review writing opens the official Loox product form inside an app WebView.) Tj T*
+/F1 9 Tf
+(Loox APIs are read-only, so native API submission and moderation are unavailable.) Tj T*
+/F1 9 Tf
+() Tj T*
+/F2 10 Tf
+(ADMIN LOGIN SETUP) Tj T*
+/F1 9 Tf
+(1. Enable Email/Password in Firebase Authentication and create the admin user.) Tj T*
+/F1 9 Tf
+(2. From a trusted computer with Firebase Admin SDK credentials, run:) Tj T*
+/F1 9 Tf
+(   cd functions) Tj T*
+/F1 9 Tf
+(   node grant_admin.js admin@example.com) Tj T*
+/F1 9 Tf
+(3. The script grants the custom claim admin=true. Sign out and sign in again.) Tj T*
+/F1 9 Tf
+(4. Open the Admin Portal in the FLEXWOLF app and enter those Firebase credentials.) Tj T*
+/F1 9 Tf
+(5. Never put Shopify Admin secrets or a Firebase service account in the APK.) Tj T*
+/F1 9 Tf
+() Tj T*
+/F2 10 Tf
+(ADMIN DASHBOARD) Tj T*
+/F1 9 Tf
+(Open Dashboard > Store. The four tabs are Products, Orders, Firebase users, Push.) Tj T*
+/F1 9 Tf
+(Products: enter a title and positive price, then tap Create draft product.) Tj T*
+/F1 9 Tf
+(Shopify creates a DRAFT and updates the default variant price.) Tj T*
+/F1 9 Tf
+(Add media, inventory, options and sales channel publication in Shopify Admin.) Tj T*
+/F1 9 Tf
+(To change a listed variant price, expand its product and tap the edit icon.) Tj T*
+/F1 9 Tf
+(Orders: recent 30 Shopify orders show total, payment and fulfillment status.) Tj T*
+/F1 9 Tf
+(The screen currently displays orders; fulfillment, capture, refund and cancellation) Tj T*
+/F1 9 Tf
+(must still be performed in Shopify Admin until supported server actions exist.) Tj T*
+/F1 9 Tf
+(Firebase users: recent first 100 Auth users are shown with UID and disabled state.) Tj T*
+/F1 9 Tf
+(Push: enter title and message, then Send push notification. Signed-in customers) Tj T*
+/F1 9 Tf
+(who allowed notifications and registered a token receive the FCM topic message.) Tj T*
+/F1 9 Tf
+(Use a test message first; sending to the topic cannot be undone.) Tj T*
+/F1 9 Tf
+() Tj T*
+/F2 10 Tf
+(BACKEND DEPLOYMENT) Tj T*
+/F1 9 Tf
+(Firebase Functions must be deployed to project flexwolf-mobile-app in us-central1.) Tj T*
+/F1 9 Tf
+(The project must support Functions and Secret Manager \(Blaze billing is required\).) Tj T*
+/F1 9 Tf
+(Set SHOPIFY_STORE_DOMAIN and SHOPIFY_ADMIN_API_VERSION=2026-07 for Functions.) Tj T*
+/F1 9 Tf
+(Set the Shopify client secret as a Firebase secret:) Tj T*
+/F1 9 Tf
+(   firebase functions:secrets:set SHOPIFY_API_SECRET) Tj T*
+/F1 9 Tf
+(Shopify Admin tokens are generated and refreshed by Functions on the server.) Tj T*
+/F1 9 Tf
+(The client credentials grant requires the app to act on its own organization store.) Tj T*
+/F1 9 Tf
+(Deploy after setting the secret:) Tj T*
+/F1 9 Tf
+(   firebase deploy --only functions) Tj T*
+/F1 9 Tf
+(The Shopify app needs read_products, write_products and read_orders scopes.) Tj T*
+/F1 9 Tf
+(If customer syncing is enabled, add read_customers and write_customers.) Tj T*
+/F1 9 Tf
+(Admin actions use Firebase verified ID tokens and require admin=true custom claim.) Tj T*
+/F1 9 Tf
+(The Shopify Admin GraphQL HTTP proxy also requires that admin token.) Tj T*
+/F1 9 Tf
+(Shopify API client ID and secret are exchanged server-side for an Admin token.) Tj T*
+/F1 9 Tf
+() Tj T*
+/F2 10 Tf
+(MOBILE CHECKS) Tj T*
+/F1 9 Tf
+(Build and launch the app on a device. Test Firebase sign up, sign in and logout.) Tj T*
+ET
+BT /F1 8 Tf 50 30 Td
+(FLEXWOLF admin guide - page 1 of 2) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 1487 >>
+stream
+BT
+/F1 9 Tf
+50 800 Td
+13 TL
+/F1 9 Tf
+(Without an account, Add to Bag and checkout must ask for sign in.) Tj T*
+/F1 9 Tf
+(On Android, pay with a Shopify test method and confirm Checkout Kit stays in-app.) Tj T*
+/F1 9 Tf
+(Product reviews should open in the app WebView; Loox form uses ?ref=review.) Tj T*
+/F1 9 Tf
+(Allow notifications, sign in, then test Push from Admin Portal.) Tj T*
+/F1 9 Tf
+(Confirm Shopify product draft and variant price in Shopify Admin before publishing.) Tj T*
+/F1 9 Tf
+() Tj T*
+/F2 10 Tf
+(LIMITATIONS / REQUIRED INPUTS) Tj T*
+/F1 9 Tf
+(The local environment currently has no Loox publicStoreId, Firebase Functions) Tj T*
+/F1 9 Tf
+(Shopify secret, or Redo store ID/API secret. Live API verification was not possible.) Tj T*
+/F1 9 Tf
+(Loox's Storefront and Merchant APIs cannot create or moderate reviews.) Tj T*
+/F1 9 Tf
+(iOS checkout currently shows an unavailable error until its native bridge is added.) Tj T*
+/F1 9 Tf
+(Redo return submission and admin return handling remain unconnected. Obtain the) Tj T*
+/F1 9 Tf
+(Redo API base URL, auth method, return/status schema and webhook details, then) Tj T*
+/F1 9 Tf
+(implement a secret-safe Firebase gateway. Do not put Redo secrets in Flutter.) Tj T*
+/F1 9 Tf
+(Customer order history under Firebase auth is not linked to Shopify orders yet.) Tj T*
+/F1 9 Tf
+(The current admin screen reads orders and payment state but cannot mutate orders.) Tj T*
+ET
+BT /F1 8 Tf 50 30 Td
+(FLEXWOLF admin guide - page 2 of 2) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000123 00000 n 
+0000000193 00000 n 
+0000000268 00000 n 
+0000004262 00000 n 
+0000004398 00000 n 
+0000005937 00000 n 
+trailer << /Size 9 /Root 1 0 R >>
+startxref
+6073
+%%EOF

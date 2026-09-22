@@ -2,7 +2,8 @@ param(
     [ValidateSet("all", "debug-apk", "release-apk", "appbundle")]
     [string]$Target = "all",
     [string]$EnvFile = ".env",
-    [switch]$SkipChecks
+    [switch]$SkipChecks,
+    [switch]$SplitPerAbi = $true
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,6 +30,8 @@ $dartDefineKeys = @(
     "SHOPIFY_CUSTOMER_ACCOUNT_ACCESS_TOKEN",
     "SHOPIFY_CUSTOMER_ACCOUNT_TOKEN_EXPIRES_AT",
     "FIREBASE_PROJECT_ID",
+    "LOOX_PUBLIC_STORE_ID",
+    "LOOX_REVIEW_STORE_HOST",
     "ENABLE_SHOPIFY_CUSTOMER_SYNC",
     "DEEP_LINK_SCHEME",
     "DEEP_LINK_HOST",
@@ -99,10 +102,23 @@ if ($Target -eq "all" -or $Target -eq "debug-apk") {
 }
 
 if ($Target -eq "all" -or $Target -eq "release-apk") {
-    flutter build apk --release --build-name $buildName --build-number $buildNumber @dartDefines
+    if ($SplitPerAbi) {
+        flutter build apk --release --split-per-abi --build-name $buildName --build-number $buildNumber @dartDefines
+    } else {
+        flutter build apk --release --build-name $buildName --build-number $buildNumber @dartDefines
+    }
+    if ($LASTEXITCODE -ne 0) { throw 'Release APK build failed.' }
+    if ($SplitPerAbi) {
+        $releaseApks = @(Get-ChildItem -Path 'build/app/outputs/flutter-apk' -Filter 'app-*-release.apk')
+        if ($releaseApks.Count -eq 0) { throw 'No ABI-specific release APKs were produced.' }
+        foreach ($apk in $releaseApks) {
+            if ($apk.Length -gt 35MB) {
+                throw "$($apk.Name) is larger than the 35 MB APK limit."
+            }
+        }
+    }
 }
 
 if ($Target -eq "all" -or $Target -eq "appbundle") {
     flutter build appbundle --release --build-name $buildName --build-number $buildNumber @dartDefines
 }
-

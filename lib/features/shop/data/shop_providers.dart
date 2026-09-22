@@ -6,7 +6,9 @@ import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/features/checkout/data/shopify_checkout_coordinator.dart';
 import 'package:flexwolf/features/checkout/data/native_checkout_kit_bridge.dart';
 import 'package:flexwolf/features/shop/data/shopify_shop_repositories.dart';
+import 'package:flexwolf/features/shop/data/public_storefront_catalog_repository.dart';
 import 'package:flexwolf/features/shop/data/shopify_cart_repository.dart';
+import 'package:flexwolf/features/shop/data/public_cart_repository.dart';
 import 'package:flexwolf/features/shop/data/cart_controller.dart';
 import 'package:flexwolf/features/shop/domain/catalog_cache.dart';
 import 'package:flexwolf/features/shop/domain/collection.dart';
@@ -23,6 +25,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final config = ref.watch(appConfigProvider);
   final shopify = config.shopify;
+  if (!shopify.hasPublicStorefrontToken) {
+    return PublicStorefrontCatalogRepository();
+  }
   return ShopifyProductRepository(
     LazyStorefrontGraphqlClient(
       shopifyConfig: shopify,
@@ -34,6 +39,9 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 
 final collectionRepositoryProvider = Provider<CollectionRepository>((ref) {
   final config = ref.watch(appConfigProvider);
+  if (!config.shopify.hasPublicStorefrontToken) {
+    return PublicStorefrontCatalogRepository();
+  }
   return ShopifyCollectionRepository(
     LazyStorefrontGraphqlClient(
       shopifyConfig: config.shopify,
@@ -135,6 +143,9 @@ class LazyStorefrontGraphqlClient implements ShopifyGraphqlClient {
 
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
   final config = ref.watch(appConfigProvider);
+  if (!config.shopify.hasPublicStorefrontToken) {
+    return PublicCartRepository(ref.watch(localStorageProvider));
+  }
   return ShopifyCartRepository(
     LazyStorefrontGraphqlClient(
       shopifyConfig: config.shopify,

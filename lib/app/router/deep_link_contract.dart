@@ -133,6 +133,17 @@ class DeepLinkParser {
         'deleted_collection',
       );
     }
+    if (segments.length == 3 &&
+        segments[0] == 'shop' &&
+        segments[1] == 'collections') {
+      return _idRoute(
+        DeepLinkDestination.collection,
+        path,
+        link,
+        segments[2],
+        'deleted_collection',
+      );
+    }
     if (segments.length >= 3 &&
         segments[0] == 'account' &&
         segments[1] == 'orders') {

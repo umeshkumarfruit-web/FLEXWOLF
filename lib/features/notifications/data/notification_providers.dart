@@ -4,6 +4,8 @@ import 'package:flexwolf/features/notifications/data/firebase_notification_repos
 import 'package:flexwolf/features/notifications/data/notification_coordinator.dart';
 import 'package:flexwolf/features/notifications/domain/notification_models.dart';
 import 'package:flexwolf/integrations/backend/backend_boundary.dart';
+import 'package:flexwolf/integrations/backend/firebase_push_token_sync_gateway.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flexwolf/integrations/firebase/firebase_boundary.dart';
 import 'package:flexwolf/integrations/firebase/firebase_messaging_gateway.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +15,9 @@ final firebaseMessagingGatewayProvider = Provider<FirebaseMessagingGateway>(
 );
 
 final pushTokenSyncGatewayProvider = Provider<PushTokenSyncGateway>(
-  (ref) => const NoopPushTokenSyncGateway(),
+  (ref) => Firebase.apps.isNotEmpty
+      ? FirebasePushTokenSyncGateway()
+      : const NoopPushTokenSyncGateway(),
 );
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {

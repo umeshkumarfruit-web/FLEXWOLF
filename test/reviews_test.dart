@@ -1,5 +1,9 @@
 import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/features/reviews/data/review_providers.dart';
+import 'package:flexwolf/features/reviews/presentation/product_reviews_section.dart';
+import 'package:flexwolf/features/shop/domain/product.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flexwolf/features/reviews/domain/product_reviews.dart';
 import 'package:flexwolf/features/shop/domain/pagination.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +57,30 @@ void main() {
       );
     },
   );
+
+  testWidgets('storefront review links appear without a Loox store ID', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ProductReviewsSection(
+              product: ProductSummary(
+                id: 'gid://shopify/Product/1',
+                handle: 'training-tee',
+                title: 'Training Tee',
+                availableForSale: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('View Reviews'), findsOneWidget);
+    expect(find.text('Write Review'), findsOneWidget);
+    expect(find.text('Reviews are unavailable'), findsNothing);
+  });
 }
 
 class _CountingReviewRepository implements ProductReviewRepository {

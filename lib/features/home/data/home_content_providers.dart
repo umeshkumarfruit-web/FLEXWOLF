@@ -1,5 +1,3 @@
-import 'package:flexwolf/app/config/app_config.dart';
-import 'package:flexwolf/app/config/app_environment.dart';
 import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/features/home/data/default_home_content_repository.dart';
@@ -16,11 +14,8 @@ final homeClockProvider = Provider<Clock>((ref) => const SystemClock());
 
 final remoteHomeContentDataSourceProvider =
     Provider<RemoteHomeContentDataSource>((ref) {
-      final config = ref.watch(appConfigProvider);
-      if (config.environment == AppEnvironment.development) {
-        return const DevelopmentHomeContentDataSource();
-      }
-      return const ClientDependencyRemoteHomeContentDataSource();
+      // Use the storefront layout in every build until a live CMS source is wired.
+      return const DevelopmentHomeContentDataSource();
     });
 
 final cachedHomeContentDataSourceProvider =

@@ -70,6 +70,7 @@ class FirebaseNotificationRepository implements NotificationRepository {
     );
     if (_lastRegistration?.token == next.token &&
         _lastRegistration?.ownerKey == next.ownerKey) {
+      await _tokenSync.register(next);
       return _lastRegistration;
     }
     await _storage.write(

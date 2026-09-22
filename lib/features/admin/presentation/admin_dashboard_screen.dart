@@ -9,6 +9,7 @@ import 'package:flexwolf/core/widgets/flexwolf_logo.dart';
 import 'package:flexwolf/features/admin/data/admin_providers.dart';
 import 'package:flexwolf/features/admin/presentation/admin_cms_screen.dart';
 import 'package:flexwolf/features/admin/presentation/admin_operations_screen.dart';
+import 'package:flexwolf/features/admin/presentation/admin_store_operations_screen.dart';
 import 'package:flexwolf/features/admin/domain/admin_models.dart';
 import 'package:flexwolf/integrations/analytics/analytics_boundary.dart';
 import 'package:flutter/material.dart';
@@ -33,8 +34,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         .watch(adminSessionProvider)
         .maybeWhen(data: (value) => value, orElse: () => null);
     final body = switch (_selected) {
-      AdminPortalDestination.dashboard => _DashboardHome(
-        onTrack: _trackDashboard,
+      AdminPortalDestination.dashboard => DefaultTabController(
+        length: 2,
+        initialIndex: 0,
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(text: 'Overview'),
+                Tab(text: 'Store'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _DashboardHome(onTrack: _trackDashboard),
+                  const AdminStoreOperationsScreen(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       AdminPortalDestination.content => const AdminCmsScreen(),
       AdminPortalDestination.support => const AdminOperationsScreen(),

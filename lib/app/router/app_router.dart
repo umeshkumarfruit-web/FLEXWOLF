@@ -14,6 +14,8 @@ import 'package:flexwolf/features/home/app_shell.dart';
 import 'package:flexwolf/features/checkout/presentation/cart_screen.dart';
 import 'package:flexwolf/features/checkout/presentation/checkout_screen.dart';
 import 'package:flexwolf/features/shop/presentation/product_page.dart';
+import 'package:flexwolf/features/shop/presentation/shop_screen.dart';
+import 'package:flexwolf/core/layout/responsive_page_padding.dart';
 import 'package:flexwolf/integrations/analytics/analytics_boundary.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -89,11 +91,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: AppRouteNames.collection,
                     pageBuilder: (context, state) => _shellPage(
                       state: state,
-                      child: DeepLinkFallbackScreen(
-                        title: 'Collection unavailable',
-                        message:
-                            'This collection could not be loaded right now.',
-                        onPrimary: () => context.go(AppRoutes.shop),
+                      child: ResponsivePagePadding(
+                        child: ShopScreen(
+                          collectionHandle: state.pathParameters['handle'],
+                        ),
                       ),
                     ),
                   ),

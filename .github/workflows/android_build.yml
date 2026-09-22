@@ -67,7 +67,19 @@ jobs:
         run: flutter build apk --debug
 
       - name: Build release APK
-        run: flutter build apk --release --build-name "${{ steps.app_version.outputs.build_name }}" --build-number "${{ steps.app_version.outputs.build_number }}"
+        run: flutter build apk --release --split-per-abi --build-name "${{ steps.app_version.outputs.build_name }}" --build-number "${{ steps.app_version.outputs.build_number }}"
+
+      - name: Check APK size
+        shell: bash
+        run: |
+          for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
+            test -f "$apk"
+            size=$(stat -c%s "$apk")
+            if (( size > 35 * 1024 * 1024 )); then
+              echo "$apk exceeds 35 MB"
+              exit 1
+            fi
+          done
 
       - name: Build Android App Bundle
         run: flutter build appbundle --release --build-name "${{ steps.app_version.outputs.build_name }}" --build-number "${{ steps.app_version.outputs.build_number }}"
@@ -80,6 +92,5 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: |
-            build/app/outputs/flutter-apk/app-debug.apk
-            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-*-release.apk
             build/app/outputs/bundle/release/app-release.aab

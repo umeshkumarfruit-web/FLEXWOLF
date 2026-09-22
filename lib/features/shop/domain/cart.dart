@@ -54,10 +54,21 @@ abstract interface class BuyerIdentityCartRepository {
 }
 
 class CartLineInput {
-  const CartLineInput({required this.merchandiseId, required this.quantity});
+  const CartLineInput({
+    required this.merchandiseId,
+    required this.quantity,
+    this.title,
+    this.variantTitle,
+    this.price,
+    this.imageUrl,
+  });
 
   final String merchandiseId;
   final int quantity;
+  final String? title;
+  final String? variantTitle;
+  final Money? price;
+  final String? imageUrl;
 }
 
 class CartLineSummary {

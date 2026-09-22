@@ -1,13 +1,17 @@
 import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/features/reviews/domain/product_reviews.dart';
+import 'package:flexwolf/features/reviews/data/loox_review_repository.dart';
 import 'package:flexwolf/features/shop/domain/pagination.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final productReviewRepositoryProvider = Provider<ProductReviewRepository>((
   ref,
 ) {
+  const publicStoreId = String.fromEnvironment('LOOX_PUBLIC_STORE_ID');
   return CachedProductReviewRepository(
-    const ClientDependencyReviewRepository(),
+    publicStoreId.isEmpty
+        ? const ClientDependencyReviewRepository()
+        : LooxReviewRepository(publicStoreId: publicStoreId),
   );
 });
 

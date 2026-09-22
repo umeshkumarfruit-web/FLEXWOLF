@@ -5,6 +5,7 @@ import 'package:flexwolf/core/widgets/app_empty_state.dart';
 import 'package:flexwolf/core/widgets/app_loading_indicator.dart';
 import 'package:flexwolf/core/widgets/app_price.dart';
 import 'package:flexwolf/core/widgets/app_product_card_shell.dart';
+import 'package:flexwolf/core/widgets/app_quick_add_button.dart';
 import 'package:flexwolf/core/widgets/app_remote_image.dart';
 import 'package:flexwolf/core/widgets/app_section_heading.dart';
 import 'package:flexwolf/features/engagement/domain/engagement_models.dart';
@@ -45,9 +46,18 @@ abstract final class HomeSectionRendererRegistry {
     HomeSectionType.trending: _collectionRail,
     HomeSectionType.sale: _collectionRail,
     HomeSectionType.collection365: _collectionFeature,
-    HomeSectionType.flexArmCollection: _collectionFeature,
-    HomeSectionType.shorts: _collectionFeature,
-    HomeSectionType.sweats: _collectionFeature,
+    HomeSectionType.flexArmCollection: (context) =>
+        context.section.id == 'flex-arm-feature'
+        ? HomeFlexArmFeature(context: context)
+        : _collectionFeature(context),
+    HomeSectionType.shorts: (context) =>
+        context.section.id == 'bottomwear-carousel'
+        ? HomeBottomwearCarousel(context: context)
+        : _collectionFeature(context),
+    HomeSectionType.sweats: (context) =>
+        context.section.id == 'performance-banner'
+        ? HomePerformanceBanner(context: context)
+        : _collectionFeature(context),
     HomeSectionType.appExclusives: _productRail,
     HomeSectionType.recommendedForYou: (context) =>
         EngagementRecommendationSection(context: context),
@@ -123,21 +133,23 @@ class EngagementRecentlyViewedSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext buildContext, WidgetRef ref) {
-    return ref.watch(recentlyViewedProvider).when(
-      loading: () => HomeSectionFrame(
-        section: context.section,
-        actionDispatcher: context.actionDispatcher,
-        child: const HomeRailSkeleton(title: 'Recently viewed'),
-      ),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (items) => items.isEmpty
-          ? const SizedBox.shrink()
-          : HomeSectionFrame(
-              section: context.section,
-              actionDispatcher: context.actionDispatcher,
-              child: const RecentlyViewedRail(),
-            ),
-    );
+    return ref
+        .watch(recentlyViewedProvider)
+        .when(
+          loading: () => HomeSectionFrame(
+            section: context.section,
+            actionDispatcher: context.actionDispatcher,
+            child: const HomeRailSkeleton(title: 'Recently viewed'),
+          ),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (items) => items.isEmpty
+              ? const SizedBox.shrink()
+              : HomeSectionFrame(
+                  section: context.section,
+                  actionDispatcher: context.actionDispatcher,
+                  child: const RecentlyViewedRail(),
+                ),
+        );
   }
 }
 
@@ -175,6 +187,11 @@ class HomeHeroBanner extends StatelessWidget {
     final actionEnabled = context.actionDispatcher.canDispatch(
       section.destination,
     );
+    final hasOverlay =
+        section.content.title != null ||
+        section.content.subtitle != null ||
+        section.content.body != null ||
+        section.content.ctaText != null;
 
     return Semantics(
       label:
@@ -206,84 +223,90 @@ class HomeHeroBanner extends StatelessWidget {
                     )
                   else
                     const AppSkeletonLoader(height: 420),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: <Color>[Color(0x08000000), Color(0xB8000000)],
-                        stops: <double>[0.35, 1],
+                  if (hasOverlay)
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: <Color>[Color(0x08000000), Color(0xB8000000)],
+                          stops: <double>[0.35, 1],
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (section.content.subtitle != null) ...[
-                          Text(
-                            section.content.subtitle!.toUpperCase(),
-                            style: Theme.of(buildContext).textTheme.labelMedium
-                                ?.copyWith(
-                                  color: AppColors.white,
-                                  letterSpacing: 2,
-                                ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                        ],
-                        if (section.content.title != null)
-                          Text(
-                            section.content.title!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(buildContext).textTheme.displaySmall
-                                ?.copyWith(
-                                  color: AppColors.surface,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 2.5,
-                                ),
-                          ),
-                        if (section.content.body != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            section.content.body!,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(buildContext).textTheme.bodyMedium
-                                ?.copyWith(color: AppColors.neutral100),
-                          ),
-                        ],
-                        if (section.content.ctaText != null) ...[
-                          const SizedBox(height: AppSpacing.md),
-                          Semantics(
-                            label: section.accessibility.ctaLabel,
-                            button: true,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.white,
-                                side: const BorderSide(
-                                  color: AppColors.white,
-                                  width: AppBorders.strong,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.lg,
-                                ),
-                              ),
-                              onPressed: actionEnabled
-                                  ? () => context.actionDispatcher.dispatch(
-                                      buildContext,
-                                      section.destination,
-                                    )
-                                  : null,
-                              child: Text(section.content.ctaText!),
+                  if (hasOverlay)
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (section.content.subtitle != null) ...[
+                            Text(
+                              section.content.subtitle!.toUpperCase(),
+                              style: Theme.of(buildContext)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: AppColors.white,
+                                    letterSpacing: 2,
+                                  ),
                             ),
-                          ),
+                            const SizedBox(height: AppSpacing.sm),
+                          ],
+                          if (section.content.title != null)
+                            Text(
+                              section.content.title!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(buildContext)
+                                  .textTheme
+                                  .displaySmall
+                                  ?.copyWith(
+                                    color: AppColors.surface,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 2.5,
+                                  ),
+                            ),
+                          if (section.content.body != null) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              section.content.body!,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(buildContext).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.neutral100),
+                            ),
+                          ],
+                          if (section.content.ctaText != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Semantics(
+                              label: section.accessibility.ctaLabel,
+                              button: true,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.white,
+                                  side: const BorderSide(
+                                    color: AppColors.white,
+                                    width: AppBorders.strong,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.lg,
+                                  ),
+                                ),
+                                onPressed: actionEnabled
+                                    ? () => context.actionDispatcher.dispatch(
+                                        buildContext,
+                                        section.destination,
+                                      )
+                                    : null,
+                                child: Text(section.content.ctaText!),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -364,8 +387,8 @@ class _HomeProductRailState extends ConsumerState<HomeProductRail> {
           actionDispatcher: widget.context.actionDispatcher,
           child: SizedBox(
             height: widget.layout == HomeProductRailLayout.completeTheLook
-                ? 320
-                : 312,
+                ? 360
+                : 382,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.only(right: AppSpacing.lg),
@@ -375,7 +398,7 @@ class _HomeProductRailState extends ConsumerState<HomeProductRail> {
                 return SizedBox(
                   width: widget.layout == HomeProductRailLayout.completeTheLook
                       ? 170
-                      : 156,
+                      : 184,
                   child: HomeProductCard(
                     product: products[index],
                     onTap: () => widget.context.actionDispatcher.dispatch(
@@ -441,22 +464,38 @@ class HomeProductCard extends StatelessWidget {
     final variant = product.variants.isEmpty ? null : product.variants.first;
     final image = product.featuredImage ?? variant?.image;
     final colorCount = _colorCount(product);
-    final subtitle = colorCount == 0 ? null : '$colorCount colors';
+    final subtitle = [
+      variant?.color,
+      variant?.size,
+    ].whereType<String>().join(' / ');
     return AppProductCardShell(
       title: product.title,
-      subtitle: subtitle,
+      subtitle: subtitle.isEmpty
+          ? (colorCount == 0 ? null : '$colorCount colors')
+          : subtitle,
       semanticLabel:
           '${product.title}${product.availableForSale ? '' : ', unavailable'}',
       onTap: onTap,
       badge: product.availableForSale
-          ? null
+          ? const AppBadge(label: 'NEW')
           : const AppBadge(label: 'SOLD OUT'),
       image: image == null
           ? const AppSkeletonLoader()
-          : AppRemoteImage(
-              imageUrl: image.url,
-              semanticLabel: image.altText ?? product.title,
-              aspectRatio: AppAspectRatios.productCard,
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                AppRemoteImage(
+                  imageUrl: image.url,
+                  semanticLabel: image.altText ?? product.title,
+                  aspectRatio: AppAspectRatios.productCard,
+                ),
+                Positioned(
+                  left: 8,
+                  right: 8,
+                  bottom: 8,
+                  child: AppQuickAddButton(onPressed: onTap),
+                ),
+              ],
             ),
       price: variant == null
           ? const Text('Price unavailable')
@@ -480,6 +519,294 @@ class HomeProductCard extends StatelessWidget {
         .whereType<String>()
         .toSet()
         .length;
+  }
+}
+
+class HomeFlexArmFeature extends ConsumerWidget {
+  const HomeFlexArmFeature({required this.context, super.key});
+
+  final HomeSectionRenderContext context;
+
+  @override
+  Widget build(BuildContext buildContext, WidgetRef ref) {
+    final reference = context.section.productReferences.first;
+    final future = ref
+        .read(homeCommerceResolverProvider)
+        .resolveProduct(reference);
+    return FutureBuilder<ProductSummary?>(
+      future: future,
+      builder: (buildContext, snapshot) {
+        final product = snapshot.data;
+        final image = product?.featuredImage;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (image != null)
+                AspectRatio(
+                  aspectRatio: 0.78,
+                  child: AppRemoteImage(
+                    imageUrl: image.url,
+                    semanticLabel: image.altText ?? 'Flex Arm Tank',
+                    aspectRatio: 0.78,
+                  ),
+                )
+              else
+                const AspectRatio(
+                  aspectRatio: 0.78,
+                  child: AppSkeletonLoader(),
+                ),
+              const SizedBox(height: 20),
+              Text(
+                'Flex Arm Tank',
+                style: Theme.of(buildContext).textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Color: Black, Crimson Red, GREEN MIST',
+                style: Theme.of(buildContext).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'CUSTOMIZE YOUR PACK',
+                style: Theme.of(buildContext).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              for (final offer in const <(String, String)>[
+                ('10-Pack', 'BEST DEAL'),
+                ('5-Pack', 'SAVE MORE'),
+                ('3-Pack', 'MOST POPULAR'),
+                ('Singles', ''),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => context.actionDispatcher.dispatch(
+                      buildContext,
+                      context.section.destination,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.black),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.radio_button_unchecked, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              offer.$1,
+                              style: Theme.of(buildContext).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          Text(
+                            offer.$2,
+                            style: Theme.of(buildContext).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => context.actionDispatcher.dispatch(
+                    buildContext,
+                    context.section.destination,
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.black,
+                    foregroundColor: AppColors.white,
+                    shape: const RoundedRectangleBorder(),
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  child: const Text('SELECT YOUR OPTIONS'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  '60-Day Guarantee  â€¢  Easy Returns & Exchanges',
+                  style: Theme.of(buildContext).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class HomeBottomwearCarousel extends StatelessWidget {
+  const HomeBottomwearCarousel({required this.context, super.key});
+
+  final HomeSectionRenderContext context;
+
+  static const _tiles = <(String, String, String)>[
+    (
+      'CLOUD FLEX JOGGER',
+      'cloud-flex-joggers',
+      'https://flexwolf.co/cdn/shop/files/flexwolfCargo1B.png?v=1781652148&width=900',
+    ),
+    (
+      'CLOUD FLEX CARGO  PANT',
+      'cloud-flex-cargo-pants',
+      'https://flexwolf.co/cdn/shop/files/KevinxCloudCargo-1869.jpg?v=1781652114&width=900',
+    ),
+    (
+      'OFF-DUTY CARGO PANT',
+      'off-duty-cargo-pants',
+      'https://flexwolf.co/cdn/shop/files/KevinxOSTAnkandtee-2697.jpg?v=1781652116&width=900',
+    ),
+    (
+      'HEAVY FLEECE JOGGER',
+      'flex-embedded-fleece-jogger',
+      'https://flexwolf.co/cdn/shop/files/Yellow_Hoodie_-_18_-_674833_42d794b9-2f25-4e53-8e0c-08e0a4fa64d8.jpg?v=1781652106&width=900',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext buildContext) => Padding(
+    padding: const EdgeInsets.only(bottom: 32),
+    child: SizedBox(
+      height: 330,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _tiles.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (buildContext, index) {
+          final tile = _tiles[index];
+          return SizedBox(
+            width: 235,
+            child: InkWell(
+              onTap: () => context.actionDispatcher.dispatch(
+                buildContext,
+                HomeDestination(
+                  type: HomeDestinationType.product,
+                  value: tile.$2,
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  AppRemoteImage(
+                    imageUrl: tile.$3,
+                    semanticLabel: tile.$1,
+                    aspectRatio: 0.72,
+                  ),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.center,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[Colors.transparent, Color(0xA8000000)],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 14,
+                    right: 14,
+                    bottom: 16,
+                    child: Text(
+                      tile.$1,
+                      style: Theme.of(buildContext).textTheme.titleMedium
+                          ?.copyWith(
+                            color: AppColors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class HomePerformanceBanner extends StatelessWidget {
+  const HomePerformanceBanner({required this.context, super.key});
+
+  final HomeSectionRenderContext context;
+
+  @override
+  Widget build(BuildContext buildContext) {
+    final section = context.section;
+    final media = section.content.media!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 32),
+      child: InkWell(
+        onTap: () => context.actionDispatcher.dispatch(
+          buildContext,
+          section.destination,
+        ),
+        child: Stack(
+          children: [
+            AspectRatio(
+              aspectRatio: 0.78,
+              child: AppRemoteImage(
+                imageUrl: _bestImageUrl(buildContext, media),
+                semanticLabel: media.altText,
+                aspectRatio: 0.78,
+              ),
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 24,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    section.content.title!,
+                    style: Theme.of(buildContext).textTheme.headlineMedium
+                        ?.copyWith(
+                          color: AppColors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    section.content.subtitle!,
+                    style: Theme.of(buildContext).textTheme.bodyMedium
+                        ?.copyWith(color: AppColors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () => context.actionDispatcher.dispatch(
+                      buildContext,
+                      section.destination,
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.white,
+                      foregroundColor: AppColors.black,
+                      shape: const RoundedRectangleBorder(),
+                    ),
+                    child: const Text('SHOP BEST SELLERS'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

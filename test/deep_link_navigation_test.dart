@@ -21,6 +21,14 @@ void main() {
       '/shop/collections/new-drop',
     );
     expect(
+      parser.parse('/shop/collections/new-arrivals').route,
+      '/shop/collections/new-arrivals',
+    );
+    expect(
+      parser.parse('/shop/collections/new-arrivals').route,
+      '/shop/collections/new-arrivals',
+    );
+    expect(
       parser.parse('/shop/products/flex-hoodie').route,
       '/shop/products/flex-hoodie',
     );

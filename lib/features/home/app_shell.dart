@@ -1,4 +1,5 @@
 import 'package:flexwolf/core/design/design_tokens.dart';
+import 'package:flexwolf/app/router/route_names.dart';
 import 'package:flexwolf/core/widgets/app_icon_action_button.dart';
 import 'package:flexwolf/core/widgets/app_scaffold.dart';
 import 'package:flexwolf/core/widgets/flexwolf_logo.dart';
@@ -92,16 +93,21 @@ class AppShell extends ConsumerWidget {
             },
           ),
         ],
-        body: Column(
-          children: [
-            const _StorefrontAnnouncementBar(),
-            Expanded(child: navigationShell),
-          ],
-        ),
-        bottomNavigationBar: AppMainNavigationBar(
-          currentIndex: currentIndex,
-          onDestinationSelected: _goToBranch,
-        ),
+        body: currentIndex == AppSection.home.index
+            ? navigationShell
+            : Column(
+                children: [
+                  const _StorefrontSaleBar(),
+                  const _StorefrontAnnouncementBar(),
+                  Expanded(child: navigationShell),
+                ],
+              ),
+        bottomNavigationBar: currentIndex == AppSection.home.index
+            ? null
+            : AppMainNavigationBar(
+                currentIndex: currentIndex,
+                onDestinationSelected: _goToBranch,
+              ),
       ),
     );
   }
@@ -114,13 +120,34 @@ class AppShell extends ConsumerWidget {
   }
 }
 
+class _StorefrontSaleBar extends StatelessWidget {
+  const _StorefrontSaleBar();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    color: AppColors.black,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: const Text(
+      'Summer Sale Up to 45% off  |  SHOP NOW',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: AppColors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+    ),
+  );
+}
+
 class _StorefrontAnnouncementBar extends StatelessWidget {
   const _StorefrontAnnouncementBar();
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'FLEXWOLF store announcement. Easy 60 day returns and free shipping on orders over 75 dollars.',
+      label: 'FLEXWOLF store announcement. Easy 60 day returns and free shipping on orders over 100 dollars.',
       child: Container(
         width: double.infinity,
         color: AppColors.black,
@@ -129,7 +156,7 @@ class _StorefrontAnnouncementBar extends StatelessWidget {
           vertical: AppSpacing.xs,
         ),
         child: Text(
-          'EASY 60-DAY RETURNS   •   FREE SHIPPING ON ORDERS OVER \$75',
+          'EASY 60-DAY RETURNS   |   FREE SHIPPING ON ORDERS OVER \u0024100',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
@@ -182,6 +209,46 @@ class _StorefrontDrawer extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(24, 14, 24, 6),
+                    child: Text(
+                      'SHOP',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  for (final category in const <(String, String)>[
+                    ('All Products', 'all-products'),
+                    ('New Arrivals', 'new-arrivals'),
+                    ('Bundles', 'bundles'),
+                    (r'$22 & UNDER', '20-under'),
+                    ('Tank Tops', 'gym-vest'),
+                    ('T-Shirts', 'compression-t-shirts'),
+                    ('Bottomwear', 'shorts'),
+                    ('Summer Sale', 'summer-sale'),
+                  ])
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                      ),
+                      title: Text(category.$1.toUpperCase()),
+                      trailing: const Icon(Icons.arrow_forward, size: 18),
+                      onTap: () {
+                        final router = GoRouter.of(context);
+                        Navigator.of(context).pop();
+                        if (category.$2 == 'bundles') {
+                          router.goNamed(
+                            AppRouteNames.product,
+                            pathParameters: const {'handle': 'flex-arm-bundle'},
+                          );
+                          return;
+                        }
+                        router.goNamed(
+                          AppRouteNames.collection,
+                          pathParameters: {'handle': category.$2},
+                        );
+                      },
+                    ),
+                  const Divider(height: 24),
                   for (final section in _sections)
                     ListTile(
                       minTileHeight: 54,

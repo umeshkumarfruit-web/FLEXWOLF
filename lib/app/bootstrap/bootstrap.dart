@@ -53,6 +53,6 @@ Future<void> _initializeFirebase() async {
   } on UnsupportedError {
     return;
   } on Object {
-    return;
+    rethrow;
   }
 }

@@ -348,9 +348,22 @@ class _ProductPageState extends ConsumerState<ProductPage> {
             'Sign in or create an account before adding items to your bag.',
       );
       if (session == null) return;
+      final product = ref
+          .read(productDetailProvider(widget.handle))
+          .asData
+          ?.value;
       await ref
           .read(cartControllerProvider)
-          .addLine(CartLineInput(merchandiseId: _variant!.id, quantity: _qty));
+          .addLine(
+            CartLineInput(
+              merchandiseId: _variant!.id,
+              quantity: _qty,
+              title: product?.title,
+              variantTitle: _variant!.title,
+              price: _variant!.price,
+              imageUrl: _variant!.image?.url ?? product?.featuredImage?.url,
+            ),
+          );
       _track(buyNow ? 'buy_now' : 'add_to_cart');
       if (buyNow && mounted) {
         context.push('/checkout');

@@ -74,13 +74,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       _error = null;
     });
     try {
+      final profile = await ref
+          .read(customerAccountRepositoryProvider)
+          .fetchProfile();
       final result = await ref
           .read(checkoutCoordinatorProvider)
           .start(
             CheckoutStartRequest(
               cart: cart,
-              customerAccessToken: session.canAuthenticateShopify
-                  ? session.accessToken
+              email: profile?.email,
+              customerAccessToken: _session?.canAuthenticateShopify == true
+                  ? _session!.accessToken
                   : null,
             ),
           );
@@ -172,12 +176,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    const ListTile(
+                    ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.verified_user_outlined),
-                      title: Text('Signed-in checkout'),
+                      leading: const Icon(Icons.verified_user_outlined),
+                      title: const Text('Signed-in checkout'),
                       subtitle: Text(
-                        'This order will be linked to your FLEXWOLF account.',
+                        'Complete your order securely on FLEXWOLF checkout.',
                       ),
                     ),
                     if (_error != null) ...[
@@ -187,7 +191,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     AppButton.primary(
                       label: _paying
-                          ? 'Opening secure payment…'
+                          ? 'Opening secure paymentÃ¢â‚¬Â¦'
                           : 'Continue to payment',
                       icon: Icons.lock_outline,
                       onPressed: _paying ? null : _pay,
@@ -200,7 +204,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            'Payment is processed securely by Shopify inside the app.',
+                            'Payment is processed securely by Shopify.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 12),
                           ),
@@ -252,7 +256,7 @@ class _ReviewLine extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     contentPadding: EdgeInsets.zero,
     title: Text(line.title),
-    subtitle: Text('${line.variantTitle ?? ''} · Qty ${line.quantity}'),
+    subtitle: Text('${line.variantTitle ?? ''} Ã‚Â· Qty ${line.quantity}'),
     trailing: line.price == null
         ? null
         : AppPrice(price: '${line.price!.currencyCode} ${line.price!.amount}'),

@@ -43,6 +43,7 @@ dependencies:
   flutter_secure_storage: ^11.1.1
   firebase_auth: ^6.7.0
   cloud_functions: ^6.5.0
+  cached_network_image: 4.0.0
 
 dev_dependencies:
   flutter_test:

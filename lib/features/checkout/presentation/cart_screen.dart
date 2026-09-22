@@ -41,7 +41,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   Future<void> _loadAuthenticatedCart() async {
     _session = await ref.read(customerSessionProvider.future);
-    if (_session != null) await _loadCart();
+    if (_session != null) {
+      await _loadCart();
+    }
     if (mounted) setState(() => _loadingSession = false);
   }
 
@@ -308,7 +310,7 @@ class _CartSummary extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'SUBTOTAL · ${cart.totalQuantity} ITEMS',
+                  'SUBTOTAL Â· ${cart.totalQuantity} ITEMS',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 AppPrice(price: _money(cart.subtotal ?? cart.total)),

@@ -136,14 +136,21 @@ class _WishlistTile extends ConsumerWidget {
               final session = await requireCustomerSession(
                 context,
                 ref,
-                message:
-                    'Sign in or create an account to move items to your bag.',
+                message: 'Sign in or create an account to move items to your bag.',
               );
               if (session == null) return;
               await ref
                   .read(cartControllerProvider)
                   .addLine(
-                    CartLineInput(merchandiseId: variant.id, quantity: 1),
+                    CartLineInput(
+                      merchandiseId: variant.id,
+                      quantity: 1,
+                      title: product?.title,
+                      variantTitle: variant.title,
+                      price: variant.price,
+                      imageUrl:
+                          variant.image?.url ?? product?.featuredImage?.url,
+                    ),
                   );
               await ref
                   .read(wishlistRepositoryProvider)

@@ -1,5 +1,7 @@
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/features/admin/data/admin_auth_repository.dart';
+import 'package:flexwolf/features/admin/data/firebase_admin_auth_repository.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flexwolf/features/admin/data/admin_cms_repository.dart';
 import 'package:flexwolf/features/admin/data/admin_foundation_repositories.dart';
 import 'package:flexwolf/features/admin/data/admin_operations_repository.dart';
@@ -12,6 +14,7 @@ import 'package:flexwolf/features/admin/domain/admin_repositories.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final adminAuthRepositoryProvider = Provider<AdminAuthRepository>((ref) {
+  if (Firebase.apps.isNotEmpty) return FirebaseAdminAuthRepository();
   return SecureStorageAdminAuthRepository(ref.watch(secureStorageProvider));
 });
 

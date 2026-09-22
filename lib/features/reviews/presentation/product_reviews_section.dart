@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flexwolf/core/design/design_tokens.dart';
 import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
@@ -13,6 +16,35 @@ import 'package:flexwolf/features/shop/domain/product.dart';
 import 'package:flexwolf/integrations/analytics/analytics_boundary.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flexwolf/features/account/presentation/customer_auth_guard.dart';
+
+final publicStorefrontRatingProvider = FutureProvider.autoDispose
+    .family<({double rating, int count})?, String>((ref, handle) async {
+      final client = HttpClient();
+      try {
+        final request = await client.getUrl(
+          Uri.https('flexwolf.co', '/products/${Uri.encodeComponent(handle)}'),
+        );
+        final response = await request.close();
+        if (response.statusCode != HttpStatus.ok) return null;
+        final html = await response.transform(utf8.decoder).join();
+        final rating = RegExp(r'MetafieldLooxRating\s*=\s*\x22([0-9.]+)\x22')
+            .firstMatch(html)
+            ?.group(1);
+        final count = RegExp(r'MetafieldLooxCount\s*=\s*([0-9]+)')
+            .firstMatch(html)
+            ?.group(1);
+        final parsedRating = double.tryParse(rating ?? '');
+        final parsedCount = int.tryParse(count ?? '');
+        if (parsedRating == null || parsedCount == null) return null;
+        return (rating: parsedRating, count: parsedCount);
+      } catch (_) {
+        return null;
+      } finally {
+        client.close(force: true);
+      }
+    });
 
 class ProductReviewsSection extends ConsumerStatefulWidget {
   const ProductReviewsSection({required this.product, super.key});
@@ -26,6 +58,11 @@ class ProductReviewsSection extends ConsumerStatefulWidget {
 
 class _ProductReviewsSectionState extends ConsumerState<ProductReviewsSection> {
   static const _pageSize = 5;
+  static const _publicStoreId = String.fromEnvironment('LOOX_PUBLIC_STORE_ID');
+  static const _storeHost = String.fromEnvironment(
+    'LOOX_REVIEW_STORE_HOST',
+    defaultValue: 'flexwolf.co',
+  );
 
   ReviewSort _sort = ReviewSort.latest;
   var _expanded = false;
@@ -34,6 +71,8 @@ class _ProductReviewsSectionState extends ConsumerState<ProductReviewsSection> {
 
   @override
   Widget build(BuildContext context) {
+    if (_publicStoreId.isEmpty) return _buildStorefrontReviews(context);
+
     final key = ReviewProductKey(
       productId: widget.product.id,
       productHandle: widget.product.handle,
@@ -145,13 +184,77 @@ class _ProductReviewsSectionState extends ConsumerState<ProductReviewsSection> {
     );
   }
 
-  Future<void> _openWriteReview() async {
-    _track(AppAnalyticsEvents.writeReviewOpened);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _WriteReviewSheet(product: widget.product),
+  Widget _buildStorefrontReviews(BuildContext context) => Semantics(
+    container: true,
+    label: 'Product reviews',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Reviews', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.sm),
+        ref
+            .watch(publicStorefrontRatingProvider(widget.product.handle))
+            .when(
+              data: (rating) => rating == null
+                  ? const Text('See customer reviews on the FLEXWOLF store.')
+                  : Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 20),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${rating.rating.toStringAsFixed(1)} / 5  ·  ${rating.count} reviews',
+                        ),
+                      ],
+                    ),
+              loading: () => const Text('Loading rating...'),
+              error: (_, _) =>
+                  const Text('See customer reviews on the FLEXWOLF store.'),
+            ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            AppButton.secondary(
+              label: 'View Reviews',
+              icon: Icons.rate_review_outlined,
+              onPressed: () {
+                _track(AppAnalyticsEvents.reviewOpened);
+                _openReviewUrl(_productReviewUrl(writeReview: false));
+              },
+            ),
+            AppButton.primary(
+              label: 'Write Review',
+              icon: Icons.edit_outlined,
+              onPressed: _openWriteReview,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Uri _productReviewUrl({required bool writeReview}) => Uri.https(
+    _storeHost,
+    '/products/${Uri.encodeComponent(widget.product.handle)}',
+    writeReview ? const {'ref': 'review'} : null,
+  ).replace(fragment: writeReview ? null : 'looxReviews');
+
+  Future<void> _openReviewUrl(Uri url) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => _EmbeddedLooxReviewScreen(url: url)),
     );
+  }
+
+  Future<void> _openWriteReview() async {
+    final session = await requireCustomerSession(
+      context,
+      ref,
+      message: 'Sign in before writing a review.',
+    );
+    if (session == null || !mounted) return;
+    _track(AppAnalyticsEvents.writeReviewOpened);
+    await _openReviewUrl(_productReviewUrl(writeReview: true));
   }
 
   void _track(String name) {
@@ -260,7 +363,7 @@ class _ReviewSortControl extends StatelessWidget {
           value: ReviewSort.lowestRating,
           child: Text('Lowest Rating'),
         ),
-        DropdownMenuItem(value: ReviewSort.helpful, child: Text('Helpful')),
+        DropdownMenuItem(value: ReviewSort.helpful, child: Text('Featured')),
       ],
       onChanged: (value) {
         if (value != null) onChanged(value);
@@ -357,144 +460,6 @@ class _ReviewTile extends StatelessWidget {
   }
 }
 
-class _WriteReviewSheet extends ConsumerStatefulWidget {
-  const _WriteReviewSheet({required this.product});
-
-  final ProductSummary product;
-
-  @override
-  ConsumerState<_WriteReviewSheet> createState() => _WriteReviewSheetState();
-}
-
-class _WriteReviewSheetState extends ConsumerState<_WriteReviewSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _title = TextEditingController();
-  final _comment = TextEditingController();
-  var _rating = 5;
-  var _submitting = false;
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _comment.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
-        ),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Write Review',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<int>(
-                  initialValue: _rating,
-                  decoration: const InputDecoration(labelText: 'Rating'),
-                  items: const [
-                    DropdownMenuItem(value: 5, child: Text('5 stars')),
-                    DropdownMenuItem(value: 4, child: Text('4 stars')),
-                    DropdownMenuItem(value: 3, child: Text('3 stars')),
-                    DropdownMenuItem(value: 2, child: Text('2 stars')),
-                    DropdownMenuItem(value: 1, child: Text('1 star')),
-                  ],
-                  onChanged: (value) => setState(() => _rating = value ?? 5),
-                ),
-                TextFormField(
-                  controller: _title,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                  textInputAction: TextInputAction.next,
-                  validator: (value) =>
-                      (value ?? '').trim().isEmpty ? 'Enter a title.' : null,
-                ),
-                TextFormField(
-                  controller: _comment,
-                  decoration: const InputDecoration(labelText: 'Comment'),
-                  minLines: 3,
-                  maxLines: 6,
-                  validator: (value) => (value ?? '').trim().length < 10
-                      ? 'Enter at least 10 characters.'
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton.icon(
-                  onPressed: null,
-                  icon: const Icon(Icons.image_outlined),
-                  label: const Text(
-                    'Image attachment pending provider support',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppButton.primary(
-                  label: _submitting ? 'Submitting' : 'Submit Review',
-                  icon: Icons.send_outlined,
-                  onPressed: _submitting ? null : _submit,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _submitting = true);
-    try {
-      await ref
-          .read(productReviewRepositoryProvider)
-          .submitReview(
-            ReviewSubmission(
-              productId: widget.product.id,
-              productHandle: widget.product.handle,
-              rating: _rating,
-              title: _title.text.trim(),
-              comment: _comment.text.trim(),
-            ),
-          );
-      await ref
-          .read(analyticsGatewayProvider)
-          .track(
-            AnalyticsEvent(
-              name: AppAnalyticsEvents.reviewSubmitted,
-              parameters: {
-                'productId': widget.product.id,
-                'handle': widget.product.handle,
-              },
-            ),
-          );
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review submitted successfully.')),
-        );
-      }
-    } on Object catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(_message(error))));
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-}
-
 class _ReviewSummarySkeleton extends StatelessWidget {
   const _ReviewSummarySkeleton();
 
@@ -524,4 +489,50 @@ class _ReviewListSkeleton extends StatelessWidget {
 String _message(Object error) {
   if (error is AppException) return error.userMessage;
   return 'Try again later.';
+}
+
+class _EmbeddedLooxReviewScreen extends StatefulWidget {
+  const _EmbeddedLooxReviewScreen({required this.url});
+
+  final Uri url;
+
+  @override
+  State<_EmbeddedLooxReviewScreen> createState() =>
+      _EmbeddedLooxReviewScreenState();
+}
+
+class _EmbeddedLooxReviewScreenState extends State<_EmbeddedLooxReviewScreen> {
+  late final WebViewController _controller;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() => _loading = false);
+          },
+          onNavigationRequest: (request) {
+            final uri = Uri.tryParse(request.url);
+            if (uri?.scheme != 'https') return NavigationDecision.prevent;
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..loadRequest(widget.url);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('FLEXWOLF reviews')),
+    body: Stack(
+      children: [
+        WebViewWidget(controller: _controller),
+        if (_loading) const Center(child: CircularProgressIndicator()),
+      ],
+    ),
+  );
 }
