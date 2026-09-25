@@ -6,6 +6,8 @@ import 'package:flexwolf/app/router/deep_link_contract.dart';
 import 'package:flexwolf/app/router/route_names.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/git_index.dart';
+
 void main() {
   test('go-live production config is release-safe by default', () {
     final config = AppConfig.forEnvironment(AppEnvironment.production);
@@ -58,7 +60,7 @@ void main() {
       'lib/firebase_options.dart',
     ]) {
       expect(
-        File(path).existsSync(),
+        isTrackedByGit(path),
         isFalse,
         reason: '$path must be supplied outside source control',
       );

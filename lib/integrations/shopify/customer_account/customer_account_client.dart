@@ -37,6 +37,7 @@ class ShopifyCustomerAccountClient {
   Future<Map<String, Object?>> query(
     String document, {
     required String accessToken,
+    Map<String, Object?> variables = const <String, Object?>{},
   }) async {
     final discovery = await discoverAuthConfiguration();
     final transport = HttpClient();
@@ -47,7 +48,7 @@ class ShopifyCustomerAccountClient {
         config: appConfig,
         logger: logger,
         headersBuilder: () => {'Authorization': accessToken},
-      ).query(ShopifyGraphqlRequest(document: document));
+      ).query(ShopifyGraphqlRequest(document: document, variables: variables));
       final data = response.data;
       if (data is! Map<String, Object?>) {
         throw const AppException(

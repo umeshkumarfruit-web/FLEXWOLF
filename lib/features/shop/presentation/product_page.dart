@@ -12,7 +12,6 @@ import 'package:flexwolf/core/widgets/app_remote_image.dart';
 import 'package:flexwolf/features/engagement/data/engagement_providers.dart';
 import 'package:flexwolf/features/engagement/domain/engagement_models.dart';
 import 'package:flexwolf/features/engagement/presentation/engagement_widgets.dart';
-import 'package:flexwolf/features/account/presentation/customer_auth_guard.dart';
 import 'package:flexwolf/features/reviews/presentation/product_reviews_section.dart';
 import 'package:flexwolf/features/shop/data/shop_providers.dart';
 import 'package:flexwolf/features/shop/domain/cart.dart';
@@ -341,13 +340,6 @@ class _ProductPageState extends ConsumerState<ProductPage> {
     }
     setState(() => _busy = true);
     try {
-      final session = await requireCustomerSession(
-        context,
-        ref,
-        message:
-            'Sign in or create an account before adding items to your bag.',
-      );
-      if (session == null) return;
       final product = ref
           .read(productDetailProvider(widget.handle))
           .asData

@@ -3,6 +3,7 @@ import 'package:flexwolf/features/admin/data/admin_auth_repository.dart';
 import 'package:flexwolf/features/admin/data/firebase_admin_auth_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flexwolf/features/admin/data/admin_cms_repository.dart';
+import 'package:flexwolf/features/admin/data/firebase_admin_cms_repository.dart';
 import 'package:flexwolf/features/admin/data/admin_foundation_repositories.dart';
 import 'package:flexwolf/features/admin/data/admin_operations_repository.dart';
 import 'package:flexwolf/features/admin/domain/admin_cms_models.dart';
@@ -60,6 +61,7 @@ final adminOperationsSnapshotProvider = FutureProvider<AdminOperationsSnapshot>(
 );
 final adminHomeContentRepositoryProvider = Provider<AdminHomeContentRepository>(
   (ref) {
+    if (Firebase.apps.isNotEmpty) return FirebaseAdminCmsRepository();
     return InMemoryAdminHomeContentRepository();
   },
 );

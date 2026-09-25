@@ -165,6 +165,16 @@ class FirebaseCustomerAccountRepository implements CustomerAccountRepository {
   Future<List<CustomerAddress>> fetchAddresses() async => const [];
 
   @override
+  Future<void> setEmailMarketing(bool subscribed) async {
+    throw const AppException(
+      kind: AppErrorKind.unavailable,
+      message:
+          'Customer marketing preferences require a Shopify customer session.',
+      code: 'firebase_customer_marketing_unsupported',
+    );
+  }
+
+  @override
   Future<CustomerProfile> updateProfile(CustomerProfileInput input) async {
     input.validate();
     await _auth.currentUser?.updateDisplayName(

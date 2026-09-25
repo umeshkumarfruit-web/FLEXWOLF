@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/git_index.dart';
+
 void main() {
   group('final client handover readiness', () {
     test('required final delivery documents exist', () {
@@ -55,7 +57,7 @@ void main() {
 
       for (final path in forbiddenPaths) {
         expect(
-          File(path).existsSync(),
+          isTrackedByGit(path),
           isFalse,
           reason: '$path must stay out of git',
         );

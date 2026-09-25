@@ -1,10 +1,10 @@
+import 'package:flexwolf/app/config/app_config.dart';
 import 'package:flexwolf/core/connectivity/connectivity_service.dart';
 import 'package:flexwolf/core/design/design_tokens.dart';
 import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/core/widgets/app_button.dart';
 import 'package:flexwolf/core/widgets/app_error_state.dart';
-import 'package:flexwolf/core/widgets/app_form_field.dart';
 import 'package:flexwolf/core/widgets/app_loading_indicator.dart';
 import 'package:flexwolf/core/widgets/app_network_status_banner.dart';
 import 'package:flexwolf/features/account/data/account_providers.dart';
@@ -22,26 +22,16 @@ class AccountAuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
-  bool _signUp = false;
   bool _remember = true;
   bool _loading = true;
   bool _offline = false;
   CustomerSession? _session;
   AppException? _error;
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _restore();
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   Future<void> _restore() async {
@@ -56,7 +46,12 @@ class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
       _offline = connectivity.quality == ConnectivityQuality.offline;
       final session = await ref
           .read(customerSessionProvider.future)
-          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+          .timeout(
+            ref.read(appConfigProvider).shopify.hasCustomerAccountClient
+                ? const Duration(seconds: 30)
+                : const Duration(seconds: 5),
+            onTimeout: () => null,
+          );
       if (session != null) {
         _session = session;
         _track(AppAnalyticsEvents.sessionRestored);
@@ -89,12 +84,7 @@ class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
       }
       _session = await ref
           .read(customerAccountRepositoryProvider)
-          .login(
-            email: _emailController.text,
-            password: _passwordController.text,
-            rememberSession: _remember,
-            createAccount: _signUp,
-          );
+          .login(email: '', password: '', rememberSession: _remember);
       ref.invalidate(customerSessionProvider);
       _track(AppAnalyticsEvents.loginSuccess);
     } catch (error) {
@@ -146,6 +136,10 @@ class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shopifyLogin = ref
+        .watch(appConfigProvider)
+        .shopify
+        .hasCustomerAccountClient;
     if (_loading) {
       return Center(
         child: Semantics(
@@ -197,7 +191,7 @@ class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
                 const Icon(Icons.person_outline, color: Colors.white, size: 36),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  _signUp ? 'Join the pack.' : 'Welcome back.',
+                  'Welcome back.',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -212,29 +206,17 @@ class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Sign in')),
-              ButtonSegment(value: true, label: Text('Create account')),
-            ],
-            selected: {_signUp},
-            onSelectionChanged: (value) => setState(() {
-              _signUp = value.single;
-              _error = null;
-            }),
-          ),
-          const SizedBox(height: AppSpacing.lg),
           Text(
-            _signUp
-                ? 'Your next favourite starts here'
-                : 'Sign in to your account',
+            shopifyLogin
+                ? 'Continue with your FLEXWOLF account'
+                : 'Customer account setup is pending',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            _signUp
-                ? 'Create your FLEXWOLF account securely with email and password.'
-                : 'Sign in securely with your FLEXWOLF email and password.',
+            shopifyLogin
+                ? 'Use the same account and order history as flexwolf.co.'
+                : 'Shopping works as a guest. Sign-in will be available when the FLEXWOLF Shopify Customer Account connection is configured.',
           ),
           const SizedBox(height: AppSpacing.md),
           if (_error != null)
@@ -244,88 +226,29 @@ class _AccountAuthScreenState extends ConsumerState<AccountAuthScreen> {
                   ? AppOfflineState(onRetry: _login)
                   : AppErrorState(error: _error!, onRetry: _login),
             ),
-          _LoginForm(
-            signUp: _signUp,
-            remember: _remember,
-            emailController: _emailController,
-            passwordController: _passwordController,
-            onRememberChanged: (value) => setState(() => _remember = value),
-            onLogin: _login,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoginForm extends StatelessWidget {
-  const _LoginForm({
-    required this.signUp,
-    required this.remember,
-    required this.emailController,
-    required this.passwordController,
-    required this.onRememberChanged,
-    required this.onLogin,
-  });
-
-  final bool signUp;
-  final bool remember;
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
-  final ValueChanged<bool> onRememberChanged;
-  final VoidCallback onLogin;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AutofillGroup(
-            child: Column(
-              children: [
-                AppFormField(
-                  label: 'Email',
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.email],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppFormField(
-                  label: 'Password',
-                  controller: passwordController,
-                  textInputAction: TextInputAction.done,
-                  autofillHints: [
-                    signUp ? AutofillHints.newPassword : AutofillHints.password,
-                  ],
-                  obscureText: true,
-                ),
-              ],
+          if (shopifyLogin) ...[
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Keep me signed in'),
+              subtitle: const Text('On this device'),
+              value: _remember,
+              onChanged: (value) => setState(() => _remember = value),
             ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Keep me signed in'),
-            subtitle: const Text('On this device'),
-            value: remember,
-            onChanged: onRememberChanged,
-          ),
-          AppButton.primary(
-            label: signUp ? 'Create FLEXWOLF account' : 'Login with FLEXWOLF',
-            icon: signUp ? Icons.person_add_alt_1 : Icons.login,
-            semanticLabel: signUp
-                ? 'Create FLEXWOLF customer account'
-                : 'Login with FLEXWOLF customer account',
-            onPressed: onLogin,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text(
-            'A FLEXWOLF account is required to add items, use your bag, and checkout.',
-            textAlign: TextAlign.center,
-          ),
+            AppButton.primary(
+              label: 'Sign in or create account',
+              icon: Icons.login,
+              onPressed: _login,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
+              'Shopping and checkout are also available without signing in.',
+              textAlign: TextAlign.center,
+            ),
+          ] else
+            const Text(
+              'Your existing flexwolf.co account and orders will appear here after Shopify account setup.',
+              textAlign: TextAlign.center,
+            ),
         ],
       ),
     );

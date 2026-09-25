@@ -1,5 +1,6 @@
 import 'package:flexwolf/app/config/app_config.dart';
 import 'package:flexwolf/app/config/app_environment.dart';
+import 'package:flexwolf/integrations/shopify/shopify_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,5 +28,16 @@ void main() {
     expect(development.backendBaseUrl, isNot(staging.backendBaseUrl));
     expect(staging.backendBaseUrl, isNot(production.backendBaseUrl));
     expect(production.allowsVerboseLogging, isFalse);
+  });
+
+  test('public Storefront token reaches Shopify configuration', () {
+    final config = defaultShopifyConfigFor(
+      AppEnvironment.production,
+      shopDomain: 'example.myshopify.com',
+      publicStorefrontAccessToken: 'public-token',
+    );
+
+    expect(config.hasPublicStorefrontToken, isTrue);
+    expect(config.publicStorefrontAccessToken, 'public-token');
   });
 }

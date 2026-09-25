@@ -129,8 +129,8 @@ class LooxReviewRepository implements ProductReviewRepository {
   Future<ReviewSubmissionResult> submitReview(ReviewSubmission submission) {
     throw const AppException(
       kind: AppErrorKind.unavailable,
-      message: 'Open the Loox review form to submit a review.',
-      code: 'loox_submission_uses_form',
+      message: 'Loox does not support review submission through its API.',
+      code: 'loox_submission_unavailable',
     );
   }
 }

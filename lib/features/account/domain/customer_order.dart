@@ -32,12 +32,16 @@ class CustomerOrder {
       orderNumber: json['name'] as String? ?? json['orderNumber']?.toString(),
       processedAt: DateTime.tryParse(json['processedAt'] as String? ?? ''),
       totalPrice: _money(json['totalPrice'] ?? json['totalPriceSet']),
-      subtotalPrice: _money(json['subtotalPrice'] ?? json['subtotalPriceSet']),
+      subtotalPrice: _money(
+        json['subtotalPrice'] ?? json['subtotal'] ?? json['subtotalPriceSet'],
+      ),
       discountTotal: _money(
         json['totalDiscounts'] ?? json['totalDiscountsSet'],
       ),
       shippingPrice: _money(
-        json['totalShippingPrice'] ?? json['totalShippingPriceSet'],
+        json['totalShippingPrice'] ??
+            json['totalShipping'] ??
+            json['totalShippingPriceSet'],
       ),
       taxTotal: _money(json['totalTax'] ?? json['totalTaxSet']),
       paymentStatus:
@@ -60,7 +64,7 @@ class CustomerOrder {
       lineItems: _connectionNodes(json['lineItems'])
           .map(CustomerOrderLineItem.fromShopify)
           .toList(growable: false),
-      fulfillments: _listMaps(json['fulfillments'])
+      fulfillments: _connectionOrListMaps(json['fulfillments'])
           .map(CustomerFulfillment.fromShopify)
           .toList(growable: false),
     );
@@ -104,7 +108,7 @@ class CustomerOrderLineItem {
   });
 
   factory CustomerOrderLineItem.fromShopify(Map<String, Object?> json) {
-    final title = json['title'];
+    final title = json['name'] ?? json['title'];
     final quantity = json['quantity'];
     if (title is! String || quantity is! int) {
       throw const FormatException('Customer order line item is invalid.');
@@ -117,6 +121,7 @@ class CustomerOrderLineItem {
       sku: json['sku'] as String?,
       price: _money(
         json['price'] ??
+            json['totalPrice'] ??
             json['discountedTotalPrice'] ??
             json['originalTotalPrice'],
       ),
@@ -124,7 +129,9 @@ class CustomerOrderLineItem {
       image: json['image'] is Map<String, Object?>
           ? ProductImage.fromShopify(json['image']! as Map<String, Object?>)
           : null,
-      selectedOptions: _selectedOptions(json['selectedOptions']),
+      selectedOptions: _selectedOptions(
+        json['selectedOptions'] ?? json['variantOptions'],
+      ),
     );
   }
 
@@ -150,13 +157,26 @@ class CustomerFulfillment {
   });
 
   factory CustomerFulfillment.fromShopify(Map<String, Object?> json) {
+    final tracking = json['trackingInformation'];
+    final firstTracking = tracking is List && tracking.isNotEmpty
+        ? tracking.first
+        : null;
+    final trackingMap = firstTracking is Map<String, Object?>
+        ? firstTracking
+        : null;
     return CustomerFulfillment(
       status: json['status'] as String?,
-      trackingCompany: json['trackingCompany'] as String?,
-      trackingNumber: json['trackingNumber'] as String?,
-      trackingUrl: json['trackingUrl'] == null
+      trackingCompany:
+          trackingMap?['company'] as String? ??
+          json['trackingCompany'] as String?,
+      trackingNumber:
+          trackingMap?['number'] as String? ??
+          json['trackingNumber'] as String?,
+      trackingUrl: (trackingMap?['url'] ?? json['trackingUrl']) == null
           ? null
-          : Uri.tryParse(json['trackingUrl'].toString()),
+          : Uri.tryParse(
+              (trackingMap?['url'] ?? json['trackingUrl']).toString(),
+            ),
     );
   }
 
@@ -197,7 +217,8 @@ List<Map<String, Object?>> _connectionNodes(Object? value) {
   return const <Map<String, Object?>>[];
 }
 
-List<Map<String, Object?>> _listMaps(Object? value) {
+List<Map<String, Object?>> _connectionOrListMaps(Object? value) {
+  if (value is Map<String, Object?>) return _connectionNodes(value);
   if (value is! List) return const <Map<String, Object?>>[];
   return value.whereType<Map<String, Object?>>().toList(growable: false);
 }

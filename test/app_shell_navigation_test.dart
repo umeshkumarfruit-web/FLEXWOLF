@@ -5,7 +5,6 @@ import 'package:flexwolf/app/router/route_names.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/core/storage/local_storage.dart';
 import 'package:flexwolf/features/home/app_section.dart';
-import 'package:flexwolf/features/home/app_main_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,18 +24,22 @@ void main() {
     expect(AppSection.account.routeName, AppRouteNames.account);
   });
 
-  testWidgets('app shell renders FLEXWOLF header and main navigation', (
-    tester,
-  ) async {
+  testWidgets('home shows header and drawer navigation', (tester) async {
     await tester.pumpWidget(await _returningUserApp());
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('FLEXWOLF'), findsOneWidget);
     expect(find.bySemanticsLabel('Search FLEXWOLF'), findsOneWidget);
-    for (final section in AppMainNavigationBar.sections) {
-      expect(find.text(section.label), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    await tester.tap(find.byTooltip('Open menu'));
+    await tester.pumpAndSettle();
+    for (final section in AppSection.values) {
+      await _scrollDrawerTo(tester, section.label.toUpperCase());
+      expect(
+        find.widgetWithText(ListTile, section.label.toUpperCase()),
+        findsOneWidget,
+      );
     }
-    expect(find.textContaining('Summer Sale Up to 45% off'), findsOneWidget);
   });
 
   testWidgets('hamburger menu lets the customer switch dark and light themes', (
@@ -65,25 +68,28 @@ void main() {
     );
   });
 
-  testWidgets(
-    'bottom navigation switches top-level destinations without stacks',
-    (tester) async {
-      await tester.pumpWidget(await _returningUserApp());
-      await tester.pumpAndSettle();
+  testWidgets('drawer and bottom navigation switch top-level destinations', (
+    tester,
+  ) async {
+    await tester.pumpWidget(await _returningUserApp());
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Shop'));
-      await tester.pumpAndSettle();
-      expect(find.text('All Products'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open menu'));
+    await tester.pumpAndSettle();
+    await _scrollDrawerTo(tester, 'SHOP');
+    await tester.tap(find.widgetWithText(ListTile, 'SHOP'));
+    await tester.pumpAndSettle();
+    expect(find.text('All Products'), findsOneWidget);
 
-      await tester.tap(find.text('Account'));
-      await tester.pumpAndSettle();
-      expect(find.text('Welcome back.'), findsOneWidget);
+    await tester.tap(find.text('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back.'), findsOneWidget);
 
-      await tester.tap(find.text('Home'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Summer Sale Up to 45% off'), findsOneWidget);
-    },
-  );
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.bySemanticsLabel('FLEXWOLF'), findsOneWidget);
+  });
 
   testWidgets('header search action switches to search shell', (tester) async {
     await tester.pumpWidget(await _returningUserApp());
@@ -120,28 +126,26 @@ void main() {
     },
   );
 
-  testWidgets('account screen requires authentication for shopping', (
+  testWidgets('account screen offers optional sign in for guest shoppers', (
     tester,
   ) async {
     await tester.pumpWidget(await _returningUserApp());
     await tester.pumpAndSettle();
 
-    final bottomNavigation = find.byType(NavigationBar);
-    await tester.tap(
-      find.descendant(of: bottomNavigation, matching: find.text('Account')),
-    );
+    await tester.tap(find.byTooltip('Open menu'));
     await tester.pumpAndSettle();
-    expect(find.text('Create account'), findsOneWidget);
+    await _scrollDrawerTo(tester, 'ACCOUNT');
+    await tester.tap(find.widgetWithText(ListTile, 'ACCOUNT'));
+    await tester.pumpAndSettle();
+    expect(find.text('Customer account setup is pending'), findsOneWidget);
     await tester.drag(find.byType(ListView).last, const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(find.text('Continue as Guest'), findsNothing);
     expect(
-      find.text(
-        'A FLEXWOLF account is required to add items, use your bag, and checkout.',
-      ),
+      find.text('Your existing flexwolf.co account and orders will appear here after Shopify account setup.'),
       findsOneWidget,
     );
-    expect(find.text('Login with FLEXWOLF'), findsOneWidget);
+    expect(find.text('Login with FLEXWOLF'), findsNothing);
   });
   testWidgets('navigation remains usable on narrow mobile widths', (
     tester,
@@ -152,11 +156,29 @@ void main() {
     await tester.pumpWidget(await _returningUserApp());
     await tester.pumpAndSettle();
 
-    for (final section in AppMainNavigationBar.sections) {
-      expect(find.text(section.label), findsOneWidget);
+    expect(find.byTooltip('Open menu'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open menu'));
+    await tester.pumpAndSettle();
+    for (final section in AppSection.values) {
+      await _scrollDrawerTo(tester, section.label.toUpperCase());
+      expect(
+        find.widgetWithText(ListTile, section.label.toUpperCase()),
+        findsOneWidget,
+      );
     }
     expect(tester.takeException(), isNull);
   });
+}
+
+Future<void> _scrollDrawerTo(WidgetTester tester, String label) async {
+  await tester.scrollUntilVisible(
+    find.widgetWithText(ListTile, label),
+    300,
+    scrollable: find
+        .descendant(of: find.byType(Drawer), matching: find.byType(Scrollable))
+        .first,
+  );
+  await tester.pumpAndSettle();
 }
 
 Future<Widget> _returningUserApp() async {

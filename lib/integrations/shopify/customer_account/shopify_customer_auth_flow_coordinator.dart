@@ -58,14 +58,32 @@ class ShopifyCustomerAuthFlowCoordinator
   }
 
   @override
-  Future<CustomerSession> authenticate({required bool rememberSession}) async {
+  Future<CustomerSession> authenticate({required bool rememberSession}) =>
+      _authorize(rememberSession: rememberSession, silent: false);
+
+  @override
+  Future<CustomerSession> renewSilently({required bool rememberSession}) =>
+      _authorize(rememberSession: rememberSession, silent: true);
+
+  Future<CustomerSession> _authorize({
+    required bool rememberSession,
+    required bool silent,
+  }) async {
     final codeVerifier = _pkceVerifier();
     final codeChallenge = _pkceChallenge(codeVerifier);
     final state = _randomToken();
-    final authUri = await buildAuthorizationUri(
+    var authUri = await buildAuthorizationUri(
       codeChallenge: codeChallenge,
       state: state,
     );
+    if (silent) {
+      authUri = authUri.replace(
+        queryParameters: <String, String>{
+          ...authUri.queryParameters,
+          'prompt': 'none',
+        },
+      );
+    }
 
     // Subscribe before opening the browser: immediate callbacks must not be lost.
     final callbacks = StreamController<Uri>();
@@ -140,31 +158,6 @@ class ShopifyCustomerAuthFlowCoordinator
       accessToken: accessToken.trim(),
       idToken: idToken is String ? idToken : null,
       expiresAt: expiresAt,
-    );
-  }
-
-  @override
-  Future<CustomerSession> renewSilently({
-    required String codeChallenge,
-    required String state,
-  }) async {
-    final authUri = await buildAuthorizationUri(
-      codeChallenge: codeChallenge,
-      state: state,
-    );
-    await _launchUri(
-      authUri.replace(
-        queryParameters: <String, String>{
-          ...authUri.queryParameters,
-          'prompt': 'none',
-        },
-      ),
-    );
-    throw const AppException(
-      kind: AppErrorKind.authentication,
-      message: 'Silent Customer Account renewal requires a callback exchange.',
-      code: 'customer_auth_silent_renew_pending',
-      isRetryable: true,
     );
   }
 

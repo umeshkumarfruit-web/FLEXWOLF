@@ -105,7 +105,10 @@ class AdminHomeContentItem {
     return HomeSectionConfig(
       id: id,
       type: type,
-      enabled: enabled && status == AdminContentStatus.published,
+      enabled:
+          enabled &&
+          (status == AdminContentStatus.published ||
+              status == AdminContentStatus.scheduled),
       displayOrder: displayOrder,
       schedule: HomeSchedule(startsAt: startsAt, endsAt: endsAt),
       content: HomeSectionContent(

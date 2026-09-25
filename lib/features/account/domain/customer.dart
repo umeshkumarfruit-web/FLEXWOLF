@@ -39,7 +39,11 @@ class CustomerProfile {
               isDefaultBilling: true,
             )
           : null,
-      marketingPreferences: json['marketingPreferences'] is Map<String, Object?>
+      marketingPreferences: json['emailAddress'] is Map<String, Object?>
+          ? MarketingPreferences.fromEmailAddress(
+              json['emailAddress']! as Map<String, Object?>,
+            )
+          : json['marketingPreferences'] is Map<String, Object?>
           ? MarketingPreferences.fromShopify(
               json['marketingPreferences']! as Map<String, Object?>,
             )
@@ -70,6 +74,7 @@ class CustomerAddress {
     this.city,
     this.province,
     this.country,
+    this.countryCode,
     this.zip,
     this.phone,
     this.isDefaultShipping = false,
@@ -96,6 +101,7 @@ class CustomerAddress {
       city: json['city'] as String?,
       province: json['province'] as String?,
       country: json['country'] as String?,
+      countryCode: json['territoryCode'] as String?,
       zip: json['zip'] as String?,
       phone: json['phone'] as String?,
       isDefaultShipping: isDefaultShipping,
@@ -112,6 +118,7 @@ class CustomerAddress {
   final String? city;
   final String? province;
   final String? country;
+  final String? countryCode;
   final String? zip;
   final String? phone;
   final bool isDefaultShipping;
@@ -130,6 +137,13 @@ class MarketingPreferences {
     return MarketingPreferences(
       acceptsEmailMarketing: json['acceptsEmailMarketing'] as bool?,
       acceptsSmsMarketing: json['acceptsSmsMarketing'] as bool?,
+    );
+  }
+
+  factory MarketingPreferences.fromEmailAddress(Map<String, Object?> json) {
+    final state = json['marketingState'] as String?;
+    return MarketingPreferences(
+      acceptsEmailMarketing: state == null ? null : state == 'SUBSCRIBED',
     );
   }
 

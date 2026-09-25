@@ -1,9 +1,12 @@
 ﻿# Customer Account And Checkout Readiness
 
-CUSTOMER ACCOUNT LIVE AUTH: CLIENT CONFIGURATION REQUIRED
+CUSTOMER ACCOUNT LIVE AUTH: STAGING VERIFICATION REQUIRED
 
-No Customer Account API client configuration, redirect URI, test account, or
-non-production authorization setup is available locally. Do not fabricate login.
+The local `.env` has a Customer Account API client ID and redirect URI, but its
+store domain points to the production FLEXWOLF store. No staging store config or
+test customer details were found in the workspace. The public Storefront API
+token is also missing locally. Do not create test customers or orders on the
+production store. Verify the account flow with a staging config and device.
 
 ## Existing Customer Requirement
 
@@ -52,22 +55,22 @@ Storefront cart checkoutUrl
   OR approved Shopify-hosted checkout flow
 ```
 
-Flutter bridge plan:
+Current Flutter checkout path:
 
 ```text
-Flutter -> MethodChannel/platform bridge -> Android native Checkout Kit
-Flutter -> MethodChannel/platform bridge -> iOS native Checkout Kit
+Android: Flutter -> MethodChannel -> Android native Checkout Kit
+iOS: Flutter -> in-app Shopify hosted checkout browser view
 ```
 
-Official Checkout Kit support verified for Swift, Android, and React Native.
-No official Flutter package is assumed. Native bridging requires review before
-implementation.
+Android native bridging is implemented and builds. iOS uses an in-app hosted
+checkout browser view; a native iOS Checkout Kit bridge is not implemented.
+Neither platform has been verified on a device with a staging payment.
 
 ## Checkout Callbacks
 
-Future checkout state must handle completed, cancelled, failed/error, and closed.
-Do not infer order success because checkout UI closes; listen for official
-completed result mechanisms.
+Checkout state handles completed, cancelled, failed/error, and closed. Closing
+the checkout UI is not treated as a completed purchase. Confirm callbacks on a
+device against the staging store before go-live.
 
 ## Payment Security
 

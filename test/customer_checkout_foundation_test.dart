@@ -6,6 +6,7 @@ import 'package:flexwolf/features/account/domain/customer.dart';
 import 'package:flexwolf/features/account/domain/customer_account_repository.dart';
 import 'package:flexwolf/features/account/domain/customer_order.dart';
 import 'package:flexwolf/features/checkout/domain/checkout_result.dart';
+import 'package:flexwolf/features/shop/domain/pagination.dart';
 import 'package:flexwolf/integrations/shopify/customer_account/customer_account_client.dart';
 import 'package:flexwolf/integrations/shopify/shopify_config.dart';
 import 'package:flexwolf/app/config/app_environment.dart';
@@ -20,6 +21,7 @@ void main() {
       'lastName': 'Customer',
       'emailAddress': <String, Object?>{
         'emailAddress': 'customer@example.test',
+        'marketingState': 'SUBSCRIBED',
       },
       'phoneNumber': <String, Object?>{'phoneNumber': '+15555550123'},
       'defaultAddress': <String, Object?>{
@@ -31,6 +33,7 @@ void main() {
 
     expect(customer.id, 'gid://shopify/Customer/1');
     expect(customer.email, 'customer@example.test');
+    expect(customer.marketingPreferences?.acceptsEmailMarketing, isTrue);
     expect(customer.phone, '+15555550123');
     expect(customer.defaultAddress?.city, 'Los Angeles');
   });
@@ -334,6 +337,96 @@ void main() {
     expect(completedWithoutOrder.isSuccessfulPurchase, isFalse);
     expect(completedWithOrder.isSuccessfulPurchase, isTrue);
   });
+
+  test('Shopify customer orders load with cursor and tracking', () async {
+    final client = _OrdersClient();
+    final tokenStore = MemoryCustomerTokenStore();
+    await tokenStore.write(
+      CustomerTokenSet(
+        accessToken: 'customer-token',
+        expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      ),
+    );
+    final repository = ShopifyCustomerAccountRepository(
+      client: client,
+      tokenStore: tokenStore,
+    );
+
+    final result = await repository.fetchOrders(
+      const PaginationRequest(first: 12, after: 'previous-page'),
+    );
+
+    expect(client.token, 'customer-token');
+    expect(client.variables, {'first': 12, 'after': 'previous-page'});
+    expect(result.items.single.orderNumber, '#1001');
+    expect(result.items.single.lineItems.single.size, 'M');
+    expect(result.items.single.fulfillments.single.trackingNumber, 'TRACK123');
+    expect(result.pageInfo.endCursor, 'next-page');
+  });
+}
+
+class _OrdersClient extends ShopifyCustomerAccountClient {
+  _OrdersClient()
+    : super(
+        shopifyConfig: const ShopifyConfig(
+          environment: AppEnvironment.development,
+          shopDomain: 'flexwolf.myshopify.com',
+          storefrontApiVersion: ShopifyApiVersions.storefront,
+          customerAccountApiVersion: ShopifyApiVersions.customerAccount,
+          adminApiVersion: ShopifyApiVersions.admin,
+        ),
+        appConfig: AppConfig.forEnvironment(AppEnvironment.development),
+        logger: AppLogger(AppConfig.forEnvironment(AppEnvironment.development)),
+      );
+
+  String? token;
+  Map<String, Object?>? variables;
+
+  @override
+  Future<Map<String, Object?>> query(
+    String document, {
+    required String accessToken,
+    Map<String, Object?> variables = const <String, Object?>{},
+  }) async {
+    token = accessToken;
+    this.variables = variables;
+    return {
+      'customer': {
+        'orders': {
+          'nodes': [
+            {
+              'id': 'gid://shopify/Order/1',
+              'name': '#1001',
+              'processedAt': '2026-09-20T12:00:00Z',
+              'totalPrice': {'amount': '60.00', 'currencyCode': 'USD'},
+              'lineItems': {
+                'nodes': [
+                  {
+                    'name': 'Flex Tee',
+                    'quantity': 1,
+                    'variantOptions': [
+                      {'name': 'Size', 'value': 'M'},
+                    ],
+                  },
+                ],
+              },
+              'fulfillments': {
+                'nodes': [
+                  {
+                    'status': 'SUCCESS',
+                    'trackingInformation': [
+                      {'company': 'UPS', 'number': 'TRACK123'},
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+          'pageInfo': {'hasNextPage': true, 'endCursor': 'next-page'},
+        },
+      },
+    };
+  }
 }
 
 class MemoryCustomerTokenStore implements CustomerTokenStore {

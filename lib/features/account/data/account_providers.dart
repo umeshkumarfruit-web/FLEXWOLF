@@ -5,7 +5,6 @@ import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/core/storage/secure_storage.dart';
 import 'package:flexwolf/features/account/data/shopify_customer_account_repository.dart';
-import 'package:flexwolf/features/account/data/firebase_customer_account_repository.dart';
 import 'package:flexwolf/features/account/domain/customer.dart';
 import 'package:flexwolf/features/account/domain/customer_account_repository.dart';
 import 'package:flexwolf/features/account/domain/customer_order.dart';
@@ -15,7 +14,6 @@ import 'package:flexwolf/features/notifications/domain/notification_models.dart'
 import 'package:flexwolf/features/shop/domain/pagination.dart';
 import 'package:flexwolf/integrations/shopify/customer_account/customer_account_client.dart';
 import 'package:flexwolf/integrations/shopify/customer_account/shopify_customer_auth_flow_coordinator.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final customerTokenStoreProvider = Provider<CustomerTokenStore>(
@@ -59,13 +57,9 @@ final customerAuthCoordinatorProvider = Provider<CustomerAuthFlowCoordinator>((
 final customerAccountRepositoryProvider = Provider<CustomerAccountRepository>((
   ref,
 ) {
-  if (Firebase.apps.isNotEmpty) {
-    return PushAwareCustomerAccountRepository(
-      delegate: FirebaseCustomerAccountRepository(),
-      notifications: ref.watch(notificationRepositoryProvider),
-    );
-  }
   final config = ref.watch(appConfigProvider);
+  // Customer identities and orders must stay in Shopify, including when the
+  // Customer Account client has not yet been configured.
   final auth = ref.watch(customerAuthCoordinatorProvider);
   return PushAwareCustomerAccountRepository(
     delegate: ShopifyCustomerAccountRepository(
@@ -156,10 +150,8 @@ class ClientDependencyCustomerAuthCoordinator
   }) => throw _pending;
 
   @override
-  Future<CustomerSession> renewSilently({
-    required String codeChallenge,
-    required String state,
-  }) => throw _pending;
+  Future<CustomerSession> renewSilently({required bool rememberSession}) =>
+      throw _pending;
 
   @override
   Future<void> revokeOrLogout(CustomerSession session) async {}
@@ -226,6 +218,10 @@ class PushAwareCustomerAccountRepository implements CustomerAccountRepository {
   @override
   Future<CustomerProfile> updateProfile(CustomerProfileInput input) =>
       delegate.updateProfile(input);
+
+  @override
+  Future<void> setEmailMarketing(bool subscribed) =>
+      delegate.setEmailMarketing(subscribed);
 
   @override
   Future<CustomerAddress> addAddress(CustomerAddressInput input) =>

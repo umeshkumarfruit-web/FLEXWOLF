@@ -12,6 +12,7 @@ import 'package:flexwolf/features/shop/domain/product.dart';
 import 'package:flexwolf/integrations/analytics/analytics_boundary.dart';
 import 'package:flexwolf/integrations/backend/backend_boundary.dart';
 import 'package:flexwolf/integrations/firebase/firebase_boundary.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -63,7 +64,11 @@ void main() {
 
     final image = tester.widget<Image>(find.byType(Image));
     expect(image.image.runtimeType.toString(), 'ResizeImage');
-    expect(image.gaplessPlayback, isTrue);
+    expect(
+      tester.widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+          .useOldImageOnUrlChange,
+      isTrue,
+    );
   });
 
   test(

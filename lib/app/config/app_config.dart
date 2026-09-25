@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _compileApiBaseUrl = String.fromEnvironment('API_BASE_URL');
 const _compileShopDomain = String.fromEnvironment('SHOPIFY_STORE_DOMAIN');
+const _compilePublicStorefrontToken = String.fromEnvironment(
+  'SHOPIFY_STOREFRONT_PUBLIC_TOKEN',
+);
 const _defaultShopDomain = 'flexwolf-co.myshopify.com';
 const _defaultCustomerAccountRedirectUri =
     'shop.70241911041.flexwolf://customer-account/callback';
@@ -59,6 +62,7 @@ class AppConfig {
       shopify: defaultShopifyConfigFor(
         environment,
         shopDomain: _override(_compileShopDomain, _defaultShopDomain),
+        publicStorefrontAccessToken: _optional(_compilePublicStorefrontToken),
         customerAccountClientId: _customerAccountClientId(),
         customerAccountRedirectUri: _customerAccountRedirectUri(),
         customerAccountAccessToken: _optionalCustomerAccountAccessToken(

@@ -2,6 +2,7 @@ import 'package:flexwolf/core/errors/app_exception.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/features/home/data/default_home_content_repository.dart';
 import 'package:flexwolf/features/home/data/development_home_content_data_source.dart';
+import 'package:flexwolf/features/home/data/firebase_home_content_data_source.dart';
 import 'package:flexwolf/features/home/data/home_content_data_sources.dart';
 import 'package:flexwolf/features/home/domain/home_config.dart';
 import 'package:flexwolf/features/home/domain/home_content_repository.dart';
@@ -9,12 +10,15 @@ import 'package:flexwolf/features/shop/data/shop_providers.dart';
 import 'package:flexwolf/features/shop/domain/collection.dart';
 import 'package:flexwolf/features/shop/domain/product.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 final homeClockProvider = Provider<Clock>((ref) => const SystemClock());
 
 final remoteHomeContentDataSourceProvider =
     Provider<RemoteHomeContentDataSource>((ref) {
-      // Use the storefront layout in every build until a live CMS source is wired.
+      if (Firebase.apps.isNotEmpty) {
+        return const FirebaseHomeContentDataSource();
+      }
       return const DevelopmentHomeContentDataSource();
     });
 

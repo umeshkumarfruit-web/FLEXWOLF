@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/git_index.dart';
+
 void main() {
   test(
     'final release audit keeps secrets and signing material out of source',
@@ -17,7 +19,7 @@ void main() {
 
       for (final path in forbiddenFiles) {
         expect(
-          File(path).existsSync(),
+          isTrackedByGit(path),
           isFalse,
           reason: '$path must not be committed',
         );

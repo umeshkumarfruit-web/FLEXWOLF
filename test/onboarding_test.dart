@@ -3,6 +3,7 @@ import 'package:flexwolf/app/config/app_config.dart';
 import 'package:flexwolf/app/config/app_environment.dart';
 import 'package:flexwolf/core/services/service_registry.dart';
 import 'package:flexwolf/core/storage/local_storage.dart';
+import 'package:flexwolf/core/widgets/flexwolf_logo.dart';
 import 'package:flexwolf/features/onboarding/data/onboarding_repository.dart';
 import 'package:flexwolf/features/onboarding/domain/customer_preferences.dart';
 import 'package:flexwolf/features/onboarding/domain/onboarding_snapshot.dart';
@@ -91,7 +92,7 @@ void main() {
     await tester.tap(find.text('Skip for now'));
     await tester.pumpAndSettle();
 
-    expect(find.text('FLEXWOLF'), findsWidgets);
+    expect(find.byType(FlexwolfLogo), findsWidgets);
     expect(
       (await OnboardingRepository(storage).load()).shouldShowOnboarding,
       isFalse,
@@ -106,7 +107,7 @@ void main() {
     await tester.tap(find.text('Continue as Guest'));
     await tester.pumpAndSettle();
 
-    expect(find.text('FLEXWOLF'), findsWidgets);
+    expect(find.byType(FlexwolfLogo), findsWidgets);
     expect((await OnboardingRepository(storage).load()).isGuest, isTrue);
   });
 
@@ -132,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final snapshot = await OnboardingRepository(storage).load();
-    expect(find.text('FLEXWOLF'), findsWidgets);
+    expect(find.byType(FlexwolfLogo), findsWidgets);
     expect(snapshot.preferences.categoryIds, ['tanks']);
     expect(snapshot.preferences.sizeIds, ['xl']);
   });
@@ -145,7 +146,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('WELCOME TO THE PACK'), findsNothing);
-    expect(find.text('FLEXWOLF'), findsWidgets);
+    expect(find.byType(FlexwolfLogo), findsWidgets);
   });
 
   testWidgets('onboarding remains usable on narrow mobile widths', (

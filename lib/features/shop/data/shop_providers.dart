@@ -21,6 +21,7 @@ import 'package:flexwolf/integrations/shopify/storefront/shopify_storefront_clie
 import 'package:flexwolf/integrations/analytics/analytics_boundary.dart';
 import 'package:flexwolf/integrations/shopify/shopify_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final config = ref.watch(appConfigProvider);
@@ -171,7 +172,9 @@ final checkoutKitBridgeProvider = Provider<MethodChannelCheckoutKitBridge>(
 
 final checkoutPresenterProvider = Provider<CheckoutPresenter>((ref) {
   return AnalyticsCheckoutPresenter(
-    presenter: ref.watch(checkoutKitBridgeProvider),
+    presenter: defaultTargetPlatform == TargetPlatform.android
+        ? ref.watch(checkoutKitBridgeProvider)
+        : const ShopifyWebCheckoutPresenter(),
     analytics: ref.watch(analyticsGatewayProvider),
   );
 });

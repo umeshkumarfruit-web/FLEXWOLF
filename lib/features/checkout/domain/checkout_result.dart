@@ -218,7 +218,7 @@ class ShopifyWebCheckoutPresenter implements CheckoutPresenter {
 }
 
 Future<bool> _launchCheckout(Uri uri) =>
-    launchUrl(uri, mode: LaunchMode.externalApplication);
+    launchUrl(uri, mode: LaunchMode.inAppBrowserView);
 CustomerAddress? _addressFromInput(CustomerAddressInput? input) {
   if (input == null) return null;
   return CustomerAddress(

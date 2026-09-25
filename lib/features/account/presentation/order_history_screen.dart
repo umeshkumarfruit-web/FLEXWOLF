@@ -45,7 +45,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 
   Future<void> _load({bool refresh = false, bool trackView = false}) async {
-    if (_loadingOrders || _loadingMore) return;
+    if (_loadingOrders) return;
     _loadingOrders = true;
     setState(() {
       if (refresh) _loading = true;
@@ -100,7 +100,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   }
 
   Future<void> _loadMore() async {
-    if (!(_pageInfo?.hasNextPage ?? false)) return;
+    if (_loadingMore || !(_pageInfo?.hasNextPage ?? false)) return;
     setState(() => _loadingMore = true);
     await _load();
   }

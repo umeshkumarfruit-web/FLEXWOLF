@@ -7,12 +7,15 @@ import 'package:flexwolf/features/home/domain/home_section_registry.dart';
 class InMemoryAdminHomeContentRepository implements AdminHomeContentRepository {
   InMemoryAdminHomeContentRepository({
     AdminRemoteHomeContentPublisher? publisher,
+    AdminHomeContentDraft? initialDraft,
   }) : _publisher =
            publisher ?? const ClientDependencyRemoteHomeContentPublisher(),
-       _draft = AdminHomeContentDraft(
-         items: _defaultItems,
-         updatedAt: DateTime.now().toUtc(),
-       );
+       _draft =
+           initialDraft ??
+           AdminHomeContentDraft(
+             items: _defaultItems,
+             updatedAt: DateTime.now().toUtc(),
+           );
 
   final AdminRemoteHomeContentPublisher _publisher;
   AdminHomeContentDraft _draft;
@@ -93,12 +96,18 @@ class InMemoryAdminHomeContentRepository implements AdminHomeContentRepository {
 
   @override
   Future<AdminHomeContentDraft> publish(String id) async {
+    final previous = _draft;
     final draft = await _update(
       id,
       (item) =>
           item.copyWith(status: AdminContentStatus.published, enabled: true),
     );
-    await _publisher.publish(draft);
+    try {
+      await _publisher.publish(draft);
+    } catch (_) {
+      _draft = previous;
+      rethrow;
+    }
     return draft;
   }
 

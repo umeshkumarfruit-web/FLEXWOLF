@@ -74,6 +74,14 @@ class ReviewQuery {
 
   String get cacheKey =>
       '$productId|$productHandle|${sort.name}|${pagination.first}|${pagination.after ?? ''}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReviewQuery && cacheKey == other.cacheKey;
+
+  @override
+  int get hashCode => cacheKey.hashCode;
 }
 
 class ReviewSubmission {

@@ -9,9 +9,6 @@ import 'package:flexwolf/core/widgets/app_error_state.dart';
 import 'package:flexwolf/core/widgets/app_loading_indicator.dart';
 import 'package:flexwolf/core/widgets/app_price.dart';
 import 'package:flexwolf/core/widgets/app_remote_image.dart';
-import 'package:flexwolf/features/account/data/account_providers.dart';
-import 'package:flexwolf/features/account/domain/customer_account_repository.dart';
-import 'package:flexwolf/features/account/presentation/customer_auth_guard.dart';
 import 'package:flexwolf/features/shop/data/cart_controller.dart';
 import 'package:flexwolf/features/shop/data/shop_providers.dart';
 import 'package:flexwolf/features/shop/domain/cart.dart';
@@ -29,44 +26,24 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   late final CartController _controller;
-  CustomerSession? _session;
-  bool _loadingSession = true;
+  bool _loadingCart = true;
 
   @override
   void initState() {
     super.initState();
     _controller = ref.read(cartControllerProvider)..addListener(_changed);
-    _loadAuthenticatedCart();
-  }
-
-  Future<void> _loadAuthenticatedCart() async {
-    _session = await ref.read(customerSessionProvider.future);
-    if (_session != null) {
-      await _loadCart();
-    }
-    if (mounted) setState(() => _loadingSession = false);
-  }
-
-  Future<void> _authenticate() async {
-    final session = await requireCustomerSession(
-      context,
-      ref,
-      message: 'Sign in or create an account to use your FLEXWOLF bag.',
-    );
-    if (session == null || !mounted) return;
-    setState(() {
-      _session = session;
-      _loadingSession = true;
-    });
-    await _loadCart();
-    if (mounted) setState(() => _loadingSession = false);
+    _loadCart();
   }
 
   Future<void> _loadCart() async {
-    await _controller.restore();
-    if (_controller.itemCount > 0 &&
-        (_controller.cart?.lines.isEmpty ?? true)) {
-      await _controller.refresh();
+    try {
+      await _controller.restore();
+      if (_controller.itemCount > 0 &&
+          (_controller.cart?.lines.isEmpty ?? true)) {
+        await _controller.refresh();
+      }
+    } finally {
+      if (mounted) setState(() => _loadingCart = false);
     }
   }
 
@@ -95,12 +72,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
       body: SafeArea(
         child: ResponsivePagePadding(
-          child: _loadingSession
-              ? const Center(
-                  child: AppLoadingIndicator(label: 'Checking your account'),
-                )
-              : _session == null
-              ? _CartAuthenticationRequired(onAuthenticate: _authenticate)
+          child: _loadingCart
+              ? const Center(child: AppLoadingIndicator(label: 'Loading cart'))
               : _controller.isLoading && cart == null
               ? const Center(child: AppLoadingIndicator(label: 'Loading cart'))
               : cart == null || cart.lines.isEmpty
@@ -162,38 +135,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
     );
   }
-}
-
-class _CartAuthenticationRequired extends StatelessWidget {
-  const _CartAuthenticationRequired({required this.onAuthenticate});
-
-  final VoidCallback onAuthenticate;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.shopping_bag_outlined, size: 56),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'YOUR BAG NEEDS AN ACCOUNT',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Sign in or create a FLEXWOLF account to start shopping.',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppButton.primary(
-          label: 'Sign in or create account',
-          icon: Icons.person_outline,
-          onPressed: onAuthenticate,
-        ),
-      ],
-    ),
-  );
 }
 
 class _CartLineTile extends StatelessWidget {

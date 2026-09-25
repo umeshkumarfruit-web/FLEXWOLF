@@ -44,6 +44,39 @@ void main() {
     expect(links.hasListener, isFalse);
     await links.close();
   });
+  test('expired remembered session renews through an in-app silent OAuth callback', () async {
+    final links = StreamController<Uri>.broadcast(sync: true);
+    Uri? opened;
+    final flow = TestFlow(links.stream, (uri) async {
+      opened = uri;
+      links.add(
+        Uri.parse(
+          "shop.123456.flexwolf://auth/callback?code=verified&state=${uri.queryParameters['state']}",
+        ),
+      );
+      return true;
+    });
+    final tokens = MemoryCustomerTokenStore();
+    await tokens.write(
+      CustomerTokenSet(
+        accessToken: 'expired-token',
+        expiresAt: DateTime.now().subtract(const Duration(minutes: 1)),
+      ),
+    );
+    final repository = ShopifyCustomerAccountRepository(
+      client: ProfileClient(),
+      tokenStore: tokens,
+      authCoordinator: flow,
+    );
+
+    final session = await repository.restoreSession();
+
+    expect(opened?.queryParameters['prompt'], 'none');
+    expect(session?.accessToken, 'test-token');
+    expect((await tokens.read())?.accessToken, 'test-token');
+    expect(flow.exchanges, 1);
+    await links.close();
+  });
   test(
     'customer profile and addresses use the current customer token',
     () async {
@@ -265,6 +298,7 @@ class ProfileClient extends ShopifyCustomerAccountClient {
   Future<Map<String, Object?>> query(
     String document, {
     required String accessToken,
+    Map<String, Object?> variables = const <String, Object?>{},
   }) async {
     tokens.add(accessToken);
     return {

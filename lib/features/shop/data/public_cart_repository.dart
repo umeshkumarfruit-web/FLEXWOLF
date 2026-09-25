@@ -54,8 +54,9 @@ class PublicCartRepository implements CartRepository {
     final lines = await _load();
     for (final input in inputs) {
       final index = lines.indexWhere((line) => line.id == input.merchandiseId);
-      if (index >= 0)
+      if (index >= 0) {
         lines[index] = _copy(lines[index], quantity: input.quantity);
+      }
     }
     lines.removeWhere((line) => line.quantity <= 0);
     return _save(lines);

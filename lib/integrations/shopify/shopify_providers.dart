@@ -9,6 +9,7 @@ final shopifyConfigProvider = Provider<ShopifyConfig>((ref) {
 ShopifyConfig defaultShopifyConfigFor(
   AppEnvironment environment, {
   String shopDomain = '',
+  String? publicStorefrontAccessToken,
   String? customerAccountClientId,
   String? customerAccountRedirectUri,
   String? customerAccountAccessToken,
@@ -17,6 +18,7 @@ ShopifyConfig defaultShopifyConfigFor(
   return ShopifyConfig(
     environment: environment,
     shopDomain: shopDomain,
+    publicStorefrontAccessToken: publicStorefrontAccessToken,
     storefrontApiVersion: ShopifyApiVersions.storefront,
     customerAccountApiVersion: ShopifyApiVersions.customerAccount,
     adminApiVersion: ShopifyApiVersions.admin,

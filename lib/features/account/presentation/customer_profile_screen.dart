@@ -89,6 +89,15 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     });
   }
 
+  Future<void> _setEmailMarketing(bool subscribed) async {
+    await _runSave(() async {
+      await ref
+          .read(customerAccountRepositoryProvider)
+          .setEmailMarketing(subscribed);
+      await _load();
+    });
+  }
+
   Future<void> _addAddress(CustomerAddressInput input) async {
     await _runSave(() async {
       await ref.read(customerAccountRepositoryProvider).addAddress(input);
@@ -116,19 +125,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   }
 
   Future<void> _setDefaultShipping(String id) async {
-    await _runSave(
-      () => ref
+    await _runSave(() async {
+      await ref
           .read(customerAccountRepositoryProvider)
-          .setDefaultShippingAddress(id),
-    );
-  }
-
-  Future<void> _setDefaultBilling(String id) async {
-    await _runSave(
-      () => ref
-          .read(customerAccountRepositoryProvider)
-          .setDefaultBillingAddress(id),
-    );
+          .setDefaultShippingAddress(id);
+      await _load();
+    });
   }
 
   Future<void> _runSave(Future<void> Function() action) async {
@@ -227,14 +229,11 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             _AddressSection(
               addresses: _addresses,
               defaultAddress: _profile?.defaultAddress,
-              defaultBillingAddress:
-                  _profile?.defaultBillingAddress ?? _profile?.defaultAddress,
               saving: _saving,
               onAdd: _showAddressCreator,
               onEdit: _showAddressEditor,
               onDelete: _deleteAddress,
               onDefaultShipping: _setDefaultShipping,
-              onDefaultBilling: _setDefaultBilling,
             ),
             const SizedBox(height: AppSpacing.lg),
             _AccountExperienceActions(
@@ -249,6 +248,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             const SizedBox(height: AppSpacing.lg),
             _AccountSettings(
               session: widget.session,
+              profile: _profile,
+              saving: _saving,
+              onEmailMarketing: _setEmailMarketing,
               onLogout: widget.onLogout,
             ),
           ],
@@ -325,14 +327,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   void _showProfileEditor(CustomerProfile profile) {
     final firstName = TextEditingController(text: profile.firstName ?? '');
     final lastName = TextEditingController(text: profile.lastName ?? '');
-    final phone = TextEditingController(text: profile.phone ?? '');
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _ProfileEditor(
         firstName: firstName,
         lastName: lastName,
-        phone: phone,
         onSave: (input) async {
           Navigator.of(context).pop();
           await _saveProfile(input);
@@ -506,12 +506,6 @@ class _ProfileSummary extends StatelessWidget {
           label: 'Default shipping',
           value: _addressLine(profile.defaultAddress),
         ),
-        _InfoRow(
-          label: 'Default billing',
-          value: _addressLine(
-            profile.defaultBillingAddress ?? profile.defaultAddress,
-          ),
-        ),
       ],
     );
   }
@@ -521,23 +515,19 @@ class _AddressSection extends StatelessWidget {
   const _AddressSection({
     required this.addresses,
     required this.defaultAddress,
-    required this.defaultBillingAddress,
     required this.saving,
     required this.onAdd,
     required this.onEdit,
     required this.onDelete,
     required this.onDefaultShipping,
-    required this.onDefaultBilling,
   });
   final List<CustomerAddress> addresses;
   final CustomerAddress? defaultAddress;
-  final CustomerAddress? defaultBillingAddress;
   final bool saving;
   final VoidCallback onAdd;
   final ValueChanged<CustomerAddress?> onEdit;
   final ValueChanged<String> onDelete;
   final ValueChanged<String> onDefaultShipping;
-  final ValueChanged<String> onDefaultBilling;
 
   @override
   Widget build(BuildContext context) {
@@ -552,7 +542,7 @@ class _AddressSection extends StatelessWidget {
         if (addresses.isEmpty)
           const AppEmptyState(
             title: 'No saved addresses',
-            message: 'Add a shipping address when Customer Account writes are enabled.',
+            message: 'Add your shipping address to make checkout faster.',
             icon: Icons.location_off_outlined,
           )
         else
@@ -562,26 +552,19 @@ class _AddressSection extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.location_on_outlined),
               title: Text(_addressLine(address)),
-              subtitle: Text(
-                _addressFlags(address, defaultAddress, defaultBillingAddress),
-              ),
+              subtitle: Text(_addressFlags(address, defaultAddress)),
               trailing: PopupMenuButton<String>(
                 tooltip: 'Address actions',
                 onSelected: (value) {
                   if (value == 'edit') onEdit(address);
                   if (value == 'delete') onDelete(address.id);
                   if (value == 'shipping') onDefaultShipping(address.id);
-                  if (value == 'billing') onDefaultBilling(address.id);
                 },
                 itemBuilder: (context) => const [
                   PopupMenuItem(value: 'edit', child: Text('Edit')),
                   PopupMenuItem(
                     value: 'shipping',
                     child: Text('Set default shipping'),
-                  ),
-                  PopupMenuItem(
-                    value: 'billing',
-                    child: Text('Set default billing'),
                   ),
                   PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
@@ -593,8 +576,17 @@ class _AddressSection extends StatelessWidget {
 }
 
 class _AccountSettings extends StatelessWidget {
-  const _AccountSettings({required this.session, required this.onLogout});
+  const _AccountSettings({
+    required this.session,
+    required this.profile,
+    required this.saving,
+    required this.onEmailMarketing,
+    required this.onLogout,
+  });
   final CustomerSession session;
+  final CustomerProfile? profile;
+  final bool saving;
+  final ValueChanged<bool> onEmailMarketing;
   final Future<void> Function() onLogout;
 
   @override
@@ -604,6 +596,15 @@ class _AccountSettings extends StatelessWidget {
       children: [
         const _SectionTitle(title: 'Settings'),
         const NotificationSettingsTile(),
+        if (profile?.marketingPreferences?.acceptsEmailMarketing
+            case final bool subscribed)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Marketing emails'),
+            subtitle: const Text('Offers and updates from FLEXWOLF'),
+            value: subscribed,
+            onChanged: saving ? null : onEmailMarketing,
+          ),
         _InfoRow(
           label: 'Session expires',
           value: session.expiresAt.toLocal().toString(),
@@ -642,12 +643,10 @@ class _ProfileEditor extends StatelessWidget {
   const _ProfileEditor({
     required this.firstName,
     required this.lastName,
-    required this.phone,
     required this.onSave,
   });
   final TextEditingController firstName;
   final TextEditingController lastName;
-  final TextEditingController phone;
   final ValueChanged<CustomerProfileInput> onSave;
 
   @override
@@ -676,11 +675,6 @@ class _ProfileEditor extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'Last name'),
               validator: _required,
             ),
-            TextFormField(
-              controller: phone,
-              decoration: const InputDecoration(labelText: 'Phone'),
-              keyboardType: TextInputType.phone,
-            ),
             const SizedBox(height: AppSpacing.md),
             AppButton.primary(
               label: 'Save changes',
@@ -691,7 +685,6 @@ class _ProfileEditor extends StatelessWidget {
                   CustomerProfileInput(
                     firstName: firstName.text,
                     lastName: lastName.text,
-                    phone: phone.text.trim().isEmpty ? null : phone.text,
                   ),
                 );
               },
@@ -715,7 +708,7 @@ class _AddressEditor extends StatelessWidget {
   late final address2 = TextEditingController(text: address?.address2 ?? '');
   late final city = TextEditingController(text: address?.city ?? '');
   late final province = TextEditingController(text: address?.province ?? '');
-  late final country = TextEditingController(text: address?.country ?? '');
+  late final country = TextEditingController(text: address?.countryCode ?? '');
   late final zip = TextEditingController(text: address?.zip ?? '');
   late final phone = TextEditingController(text: address?.phone ?? '');
 
@@ -767,13 +760,18 @@ class _AddressEditor extends StatelessWidget {
               TextFormField(
                 controller: province,
                 decoration: const InputDecoration(
-                  labelText: 'State or province',
+                  labelText: 'State or province code',
                 ),
               ),
               TextFormField(
                 controller: country,
-                decoration: const InputDecoration(labelText: 'Country'),
-                validator: _required,
+                decoration: const InputDecoration(
+                  labelText: 'Country code (US, IN, etc.)',
+                ),
+                validator: (value) =>
+                    RegExp(r'^[A-Za-z]{2}$').hasMatch(value?.trim() ?? '')
+                    ? null
+                    : 'Enter a two-letter country code',
               ),
               TextFormField(
                 controller: zip,
@@ -784,7 +782,9 @@ class _AddressEditor extends StatelessWidget {
               ),
               TextFormField(
                 controller: phone,
-                decoration: const InputDecoration(labelText: 'Phone'),
+                decoration: const InputDecoration(
+                  labelText: 'Phone with country code (+...)',
+                ),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -882,17 +882,10 @@ String _addressLine(CustomerAddress? address) {
   ].whereType<String>().where((part) => part.trim().isNotEmpty).join(', ');
 }
 
-String _addressFlags(
-  CustomerAddress address,
-  CustomerAddress? shipping,
-  CustomerAddress? billing,
-) {
+String _addressFlags(CustomerAddress address, CustomerAddress? shipping) {
   final flags = <String>[];
   if (address.isDefaultShipping || address.id == shipping?.id) {
-    flags.add('Default shipping');
-  }
-  if (address.isDefaultBilling || address.id == billing?.id) {
-    flags.add('Default billing');
+    flags.add('Default address');
   }
   return flags.isEmpty ? 'Saved address' : flags.join(' / ');
 }

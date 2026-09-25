@@ -190,6 +190,22 @@ void main() {
     },
   );
 
+  test('bundle variants are sent to Shopify in one cart mutation', () async {
+    final repository = _CartRepository(_cart());
+    final controller = CartController(
+      repository: repository,
+      storage: InMemoryLocalStorage(),
+    );
+
+    await controller.addLines(const [
+      CartLineInput(merchandiseId: 'black-medium', quantity: 2),
+      CartLineInput(merchandiseId: 'red-medium', quantity: 1),
+    ]);
+
+    expect(repository.addCalls, 1);
+    expect(repository.lastAddedLines.map((line) => line.quantity), [2, 1]);
+  });
+
   test(
     'native checkout blocks non-HTTPS URLs before opening Android',
     () async {
@@ -267,6 +283,8 @@ class _CartRepository implements CartRepository {
   final CartSummary cart;
   final bool delayFetch;
   int fetchCount = 0;
+  int addCalls = 0;
+  List<CartLineInput> lastAddedLines = const [];
 
   @override
   Future<CartSummary> createCart({CartBuyerIdentity? buyerIdentity}) async =>
@@ -282,10 +300,11 @@ class _CartRepository implements CartRepository {
   }
 
   @override
-  Future<CartSummary> addLines(
-    String cartId,
-    List<CartLineInput> lines,
-  ) async => cart;
+  Future<CartSummary> addLines(String cartId, List<CartLineInput> lines) async {
+    addCalls += 1;
+    lastAddedLines = lines;
+    return cart;
+  }
 
   @override
   Future<CartSummary> removeLines(String cartId, List<String> lineIds) async =>

@@ -20,6 +20,8 @@ abstract interface class CustomerAccountRepository {
 
   Future<CustomerProfile> updateProfile(CustomerProfileInput input);
 
+  Future<void> setEmailMarketing(bool subscribed);
+
   Future<CustomerAddress> addAddress(CustomerAddressInput input);
 
   Future<CustomerAddress> updateAddress(
@@ -75,10 +77,7 @@ abstract interface class CustomerAuthFlowCoordinator {
     required String codeVerifier,
   });
 
-  Future<CustomerSession> renewSilently({
-    required String codeChallenge,
-    required String state,
-  });
+  Future<CustomerSession> renewSilently({required bool rememberSession});
 
   Future<void> revokeOrLogout(CustomerSession session);
 }

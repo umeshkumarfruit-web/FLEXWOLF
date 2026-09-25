@@ -342,6 +342,58 @@ function requireCallableAdmin(request) {
   }
 }
 
+// The public document contains only the last successfully published config.
+// Drafts are kept separately so editing cannot change the customer Home.
+const homeCmsCollection = "appContent";
+
+exports.getPublishedHomeConfig = onCall({ region }, async () => {
+  const snapshot = await getFirestore().collection(homeCmsCollection).doc("homePublished").get();
+  return { config: snapshot.exists ? snapshot.data().config : null };
+});
+
+exports.homeCms = onCall({ region }, async (request) => {
+  requireCallableAdmin(request);
+  const action = String(request.data?.action || "");
+  const collection = getFirestore().collection(homeCmsCollection);
+  if (action === "load") {
+    const snapshot = await collection.doc("homeDraft").get();
+    return { draft: snapshot.exists ? snapshot.data().draft : null };
+  }
+  if (action !== "save" && action !== "publish") {
+    throw new HttpsError("invalid-argument", "Unsupported CMS action.");
+  }
+  const draft = request.data?.draft;
+  if (!draft || !Array.isArray(draft.items) || draft.items.length > 50 ||
+      JSON.stringify(draft).length > 200000) {
+    throw new HttpsError("invalid-argument", "Invalid Home draft.");
+  }
+  const ids = new Set();
+  for (const item of draft.items) {
+    if (!item || typeof item.id !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(item.id) ||
+        ids.has(item.id) || typeof item.type !== "string" ||
+        !Number.isInteger(item.displayOrder) || item.displayOrder < 1) {
+      throw new HttpsError("invalid-argument", "Invalid Home content item.");
+    }
+    ids.add(item.id);
+  }
+  const config = request.data?.config;
+  if (action === "publish" && (!config || config.schemaVersion !== 1 ||
+      !Array.isArray(config.sections) || config.sections.length !== draft.items.length)) {
+    throw new HttpsError("invalid-argument", "Invalid published Home config.");
+  }
+  const batch = getFirestore().batch();
+  batch.set(collection.doc("homeDraft"), {
+    draft, updatedBy: request.auth.uid, updatedAt: FieldValue.serverTimestamp(),
+  });
+  if (action === "publish") {
+    batch.set(collection.doc("homePublished"), {
+      config, updatedBy: request.auth.uid, updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  return { ok: true };
+});
+
 function checkedPrice(value) {
   const price = Number(value);
   if (!Number.isFinite(price) || price <= 0 || price > 10000000) {

@@ -8,7 +8,6 @@ import 'package:flexwolf/core/widgets/app_loading_indicator.dart';
 import 'package:flexwolf/core/widgets/app_price.dart';
 import 'package:flexwolf/features/account/data/account_providers.dart';
 import 'package:flexwolf/features/account/domain/customer_account_repository.dart';
-import 'package:flexwolf/features/account/presentation/customer_auth_guard.dart';
 import 'package:flexwolf/features/checkout/domain/checkout_result.dart';
 import 'package:flexwolf/features/shop/data/cart_controller.dart';
 import 'package:flexwolf/features/shop/data/shop_providers.dart';
@@ -51,9 +50,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Future<void> _loadSession() async {
     try {
+      await _cart.restore();
       _session = await ref
           .read(customerAccountRepositoryProvider)
           .restoreSession();
+    } catch (_) {
+      // Account restore must not block guest checkout.
+      _session = null;
     } finally {
       if (mounted) setState(() => _loadingSession = false);
     }
@@ -62,27 +65,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _pay() async {
     final cart = _cart.cart;
     if (cart == null || cart.totalQuantity == 0 || _paying) return;
-    final session = await requireCustomerSession(
-      context,
-      ref,
-      message: 'A FLEXWOLF account is required to checkout.',
-    );
-    if (session == null) return;
-    _session = session;
     setState(() {
       _paying = true;
       _error = null;
     });
     try {
-      final profile = await ref
-          .read(customerAccountRepositoryProvider)
-          .fetchProfile();
+      String? email;
+      if (_session != null) {
+        try {
+          email =
+              (await ref.read(customerAccountRepositoryProvider).fetchProfile())
+                  ?.email;
+        } catch (_) {
+          // Profile prefill is optional; Shopify checkout stays available.
+        }
+      }
       final result = await ref
           .read(checkoutCoordinatorProvider)
           .start(
             CheckoutStartRequest(
               cart: cart,
-              email: profile?.email,
+              email: email,
               customerAccessToken: _session?.canAuthenticateShopify == true
                   ? _session!.accessToken
                   : null,
@@ -134,19 +137,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ? const Center(
                   child: AppLoadingIndicator(label: 'Preparing checkout'),
                 )
-              : _session == null
-              ? _CheckoutAuthenticationRequired(
-                  onAuthenticate: () async {
-                    final session = await requireCustomerSession(
-                      context,
-                      ref,
-                      message: 'Sign in or create an account to checkout.',
-                    );
-                    if (mounted && session != null) {
-                      setState(() => _session = session);
-                    }
-                  },
-                )
               : cart == null || cart.lines.isEmpty
               ? Center(
                   child: AppButton.primary(
@@ -179,7 +169,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.verified_user_outlined),
-                      title: const Text('Signed-in checkout'),
+                      title: Text(
+                        _session == null ? 'Guest checkout' : 'Secure checkout',
+                      ),
                       subtitle: Text(
                         'Complete your order securely on FLEXWOLF checkout.',
                       ),
@@ -217,35 +209,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
     );
   }
-}
-
-class _CheckoutAuthenticationRequired extends StatelessWidget {
-  const _CheckoutAuthenticationRequired({required this.onAuthenticate});
-
-  final VoidCallback onAuthenticate;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.lock_person_outlined, size: 56),
-        const SizedBox(height: AppSpacing.md),
-        Text('ACCOUNT REQUIRED', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Create a FLEXWOLF account or sign in to continue to payment.',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppButton.primary(
-          label: 'Sign in or create account',
-          icon: Icons.person_outline,
-          onPressed: onAuthenticate,
-        ),
-      ],
-    ),
-  );
 }
 
 class _ReviewLine extends StatelessWidget {

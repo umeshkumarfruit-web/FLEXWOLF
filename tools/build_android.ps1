@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "debug-apk", "release-apk", "appbundle")]
+    [ValidateSet("all", "debug-apk", "profile-apk", "release-apk", "appbundle")]
     [string]$Target = "all",
     [string]$EnvFile = ".env",
     [switch]$SkipChecks,
@@ -24,6 +24,7 @@ $buildNumber = if ($parts.Length -gt 1) { $parts[1] } else { "1" }
 $dartDefineKeys = @(
     "API_BASE_URL",
     "SHOPIFY_STORE_DOMAIN",
+    "SHOPIFY_STOREFRONT_PUBLIC_TOKEN",
     "SHOPIFY_API_KEY",
     "SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID",
     "SHOPIFY_CUSTOMER_ACCOUNT_REDIRECT_URI",
@@ -31,7 +32,6 @@ $dartDefineKeys = @(
     "SHOPIFY_CUSTOMER_ACCOUNT_TOKEN_EXPIRES_AT",
     "FIREBASE_PROJECT_ID",
     "LOOX_PUBLIC_STORE_ID",
-    "LOOX_REVIEW_STORE_HOST",
     "ENABLE_SHOPIFY_CUSTOMER_SYNC",
     "DEEP_LINK_SCHEME",
     "DEEP_LINK_HOST",
@@ -99,6 +99,11 @@ if (-not $SkipChecks) {
 
 if ($Target -eq "all" -or $Target -eq "debug-apk") {
     flutter build apk --debug --build-name $buildName --build-number $buildNumber @dartDefines
+}
+
+if ($Target -eq "profile-apk") {
+    flutter build apk --profile --build-name $buildName --build-number $buildNumber @dartDefines
+    if ($LASTEXITCODE -ne 0) { throw 'Profile APK build failed.' }
 }
 
 if ($Target -eq "all" -or $Target -eq "release-apk") {

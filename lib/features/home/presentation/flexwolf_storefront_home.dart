@@ -8,7 +8,7 @@ import 'package:flexwolf/core/widgets/app_quick_add_button.dart';
 import 'package:flexwolf/core/widgets/app_remote_image.dart';
 import 'package:flexwolf/core/widgets/shopify_image_url.dart';
 import 'package:flexwolf/features/shop/data/shop_providers.dart';
-import 'package:flexwolf/features/account/presentation/customer_auth_guard.dart';
+import 'package:flexwolf/features/home/presentation/home_feature_product.dart';
 import 'package:flexwolf/features/shop/domain/cart.dart';
 import 'package:flexwolf/features/shop/domain/pagination.dart';
 import 'package:flexwolf/features/shop/domain/product.dart';
@@ -17,8 +17,10 @@ import 'package:flexwolf/features/wishlist/data/wishlist_providers.dart';
 import 'package:flexwolf/features/wishlist/domain/wishlist.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FlexwolfStorefrontHome extends StatelessWidget {
   const FlexwolfStorefrontHome({super.key});
@@ -28,7 +30,7 @@ class FlexwolfStorefrontHome extends StatelessWidget {
       color: Theme.of(context).scaffoldBackgroundColor,
       child: CustomScrollView(
         primary: false,
-        cacheExtent: 500,
+        scrollCacheExtent: const ScrollCacheExtent.pixels(500),
         physics: const ClampingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
@@ -51,6 +53,8 @@ class FlexwolfStorefrontHome extends StatelessWidget {
               ],
             ),
           ),
+          const SliverToBoxAdapter(child: _CategoryGrid()),
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
           const _HomeCatalogGrid(),
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
@@ -240,33 +244,51 @@ class _ReferenceCrop extends StatelessWidget {
 class _ShopAllStrip extends StatelessWidget {
   const _ShopAllStrip();
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: () => context.goNamed(AppRouteNames.shop),
-          child: const Text(
-            'SHOP ALL',
-            style: TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.w800,
-              decoration: TextDecoration.underline,
+  Widget build(BuildContext context) => Stack(
+    clipBehavior: Clip.none,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 34, 16, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => context.goNamed(AppRouteNames.shop),
+              child: const Text(
+                'SHOP ALL',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.underline,
+                  decorationThickness: 2,
+                ),
+              ),
             ),
+            const SizedBox(height: 20),
+            const Text(
+              'MENS',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const Positioned(
+        top: -18,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.keyboard_arrow_down, color: Colors.black),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'MENS',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.3,
-          ),
-        ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
@@ -331,38 +353,34 @@ class _HomeCatalogGridState extends ConsumerState<_HomeCatalogGrid> {
             'airflow-performance-tank',
             'boxy-heavyweight-tee',
           ]);
-          final bottoms = all
-              .where((p) {
-                final name = '${p.title} ${p.productType ?? ''}'.toLowerCase();
-                return name.contains('short') ||
-                    name.contains('jogger') ||
-                    name.contains('cargo');
-              })
-              .take(5)
-              .toList();
+          final bottoms = _picks(all, const [
+            'off-duty-cargo-pants',
+            'flex-embedded-fleece-joggers',
+            'apex-2-in-1-shorts-5',
+            'apex-training-shorts',
+          ]);
           final performance = _picks(all, const [
             'apex-2-in-1-shorts-5',
             'apex-training-shorts',
             'flexwolf-alphaskin-compression-tees',
+            'air-mesh-long-sleeve',
           ]);
-          final edit =
-              _byHandle(all, 'wolfmark-wrap-oversized-tee') ?? prime.first;
           final feature = _byHandle(all, 'flex-arm-tank') ?? justIn.first;
           return SliverList.list(
             children: [
-              _CategoryGrid(products: all),
-              const SizedBox(height: 28),
-              _FeatureProduct(product: feature),
+              HomeFeatureProduct(product: feature),
               const SizedBox(height: 40),
               _ProductRail(
                 title: 'PRIME STRENGTH',
                 products: prime,
-                handle: 'all-products',
+                handle: 'compression-t-shirts',
                 tabs: const ['T-SHIRTS', 'BOTTOMWEAR'],
+                alternateProducts: bottoms,
+                alternateHandle: 'shorts',
               ),
               const SizedBox(height: 39),
-              _Campaign(
-                imageUrl: edit.featuredImage?.url,
+              const _Campaign(
+                imageUrl: 'https://flexwolf.co/cdn/shop/files/wolf_edition_with_text_mobile.png?v=1781988758&width=900',
                 title: 'THE WOLF EDIT',
                 handle: 'graphic-collection',
               ),
@@ -415,17 +433,28 @@ List<ProductSummary> _picks(List<ProductSummary> all, List<String> handles) {
 }
 
 class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid({required this.products});
-  final List<ProductSummary> products;
+  const _CategoryGrid();
   @override
   Widget build(BuildContext context) {
     const categories = [
-      ('Hoodie & Crew Neck', 'hoodies', 'hoodie'),
-      ('T-Shirts', 't-shirts', 'tee'),
-      ('Tank Tops', 'gym-vest', 'tank'),
-      ('Bottomwear', 'shorts', 'short'),
-      ('SUMMER SALE', 'summer-sale', 'jogger'),
-      ('Graphic Collection', 'graphic-collection', 'graphic'),
+      (
+        'Hoodie & Crew Neck',
+        'winter-collection',
+        'assets/images/home_category_hoodie.jpg',
+      ),
+      (
+        'T-Shirts',
+        'compression-t-shirts',
+        'assets/images/home_category_tees.jpg',
+      ),
+      ('Tank Tops', 'gym-vest', 'assets/images/home_category_tanks.jpg'),
+      ('Bottomwear', 'shorts', 'assets/images/home_category_bottomwear.jpg'),
+      ('SUMMER SALE', 'summer-sale', ''),
+      (
+        'Graphic Collection',
+        'graphic-collection',
+        'assets/images/home_category_graphic.jpg',
+      ),
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -450,10 +479,10 @@ class _CategoryGrid extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: AspectRatio(
-                            aspectRatio: .77,
-                            child: _HomeImage(
-                              url: _categoryImage(products, c.$3),
-                            ),
+                            aspectRatio: 168 / 232,
+                            child: c.$2 == 'summer-sale'
+                                ? const _SummerSaleTile()
+                                : Image.asset(c.$3, fit: BoxFit.cover),
                           ),
                         ),
                         const SizedBox(height: 7),
@@ -481,13 +510,93 @@ class _CategoryGrid extends StatelessWidget {
   }
 }
 
-String? _categoryImage(List<ProductSummary> all, String term) {
-  for (final p in all) {
-    if (p.title.toLowerCase().contains(term) && p.featuredImage != null) {
-      return p.featuredImage!.url;
-    }
-  }
-  return all.first.featuredImage?.url;
+class _SummerSaleTile extends StatelessWidget {
+  const _SummerSaleTile();
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<DateTime>(
+    stream: Stream<DateTime>.periodic(
+      const Duration(seconds: 1),
+      (_) => DateTime.now(),
+    ),
+    initialData: DateTime.now(),
+    builder: (context, snapshot) {
+      final now = snapshot.data ?? DateTime.now();
+      final remaining = DateTime(
+        now.year,
+        now.month,
+        now.day + 1,
+      ).difference(now);
+      final timer = [
+        remaining.inHours,
+        remaining.inMinutes % 60,
+        remaining.inSeconds % 60,
+      ].map((value) => value.toString().padLeft(2, '0')).toList();
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffdf202d), Color(0xffa90d1b)],
+          ),
+        ),
+        padding: const EdgeInsets.all(6),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'SUMMER\nSALE',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'UP TO 45% OFF',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final value in timer)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        value,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _HomeImage extends StatelessWidget {
@@ -515,12 +624,13 @@ class _HomeImage extends StatelessWidget {
           useOldImageOnUrlChange: true,
           fadeInDuration: Duration.zero,
           fadeOutDuration: Duration.zero,
-          placeholder: (context, url) => const ColoredBox(
-            color: Color(0xffeeeeee),
-          ),
+          placeholder: (context, url) =>
+              const ColoredBox(color: Color(0xffeeeeee)),
           errorWidget: (context, url, error) => const ColoredBox(
             color: Color(0xffeeeeee),
-            child: Center(child: Icon(Icons.image_outlined, color: Colors.grey)),
+            child: Center(
+              child: Icon(Icons.image_outlined, color: Colors.grey),
+            ),
           ),
         );
       },
@@ -528,58 +638,54 @@ class _HomeImage extends StatelessWidget {
   }
 }
 
-class _FeatureProduct extends StatelessWidget {
-  const _FeatureProduct({required this.product});
-  final ProductSummary product;
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () => context.goNamed(
-      AppRouteNames.product,
-      pathParameters: {'handle': product.handle},
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AspectRatio(
-          aspectRatio: .93,
-          child: _HomeImage(url: product.featuredImage?.url),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  product.title.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .6,
-                  ),
-                ),
-              ),
-              const Icon(Icons.arrow_forward),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _ProductRail extends StatelessWidget {
+class _ProductRail extends StatefulWidget {
   const _ProductRail({
     required this.title,
     required this.products,
     required this.handle,
     this.tabs = const [],
+    this.alternateProducts = const [],
+    this.alternateHandle,
   });
   final String title;
   final List<ProductSummary> products;
   final String handle;
   final List<String> tabs;
+  final List<ProductSummary> alternateProducts;
+  final String? alternateHandle;
+
+  @override
+  State<_ProductRail> createState() => _ProductRailState();
+}
+
+class _ProductRailState extends State<_ProductRail> {
+  final ScrollController _scroll = ScrollController();
+  int _selectedTab = 0;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _move(int direction, double width) {
+    if (!_scroll.hasClients) return;
+    final target = (_scroll.offset + direction * (width + 10)).clamp(
+      0.0,
+      _scroll.position.maxScrollExtent,
+    );
+    _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final products = _selectedTab == 1 && widget.alternateProducts.isNotEmpty
+        ? widget.alternateProducts
+        : widget.products;
     if (products.isEmpty) return const SizedBox.shrink();
     final cardWidth = (MediaQuery.sizeOf(context).width * .44).clamp(
       145.0,
@@ -595,7 +701,7 @@ class _ProductRail extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  title,
+                  widget.title,
                   style: const TextStyle(
                     fontSize: 27,
                     height: 1.05,
@@ -606,7 +712,11 @@ class _ProductRail extends StatelessWidget {
               InkWell(
                 onTap: () => context.goNamed(
                   AppRouteNames.collection,
-                  pathParameters: {'handle': handle},
+                  pathParameters: {
+                    'handle': _selectedTab == 1
+                        ? widget.alternateHandle ?? widget.handle
+                        : widget.handle,
+                  },
                 ),
                 child: const Text(
                   'VIEW ALL  >',
@@ -620,27 +730,25 @@ class _ProductRail extends StatelessWidget {
             ],
           ),
         ),
-        if (tabs.isNotEmpty) ...[
+        if (widget.tabs.isNotEmpty) ...[
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18),
             child: Row(
               children: [
-                for (var i = 0; i < tabs.length; i++) ...[
+                for (var i = 0; i < widget.tabs.length; i++) ...[
                   if (i > 0) const SizedBox(width: 27),
                   InkWell(
-                    onTap: () => context.goNamed(
-                      AppRouteNames.collection,
-                      pathParameters: {
-                        'handle': i == 0 ? 't-shirts' : 'shorts',
-                      },
-                    ),
+                    onTap: () {
+                      setState(() => _selectedTab = i);
+                      if (_scroll.hasClients) _scroll.jumpTo(0);
+                    },
                     child: Text(
-                      tabs[i],
+                      widget.tabs[i],
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        decoration: i == 0
+                        decoration: i == _selectedTab
                             ? TextDecoration.underline
                             : TextDecoration.none,
                       ),
@@ -654,15 +762,34 @@ class _ProductRail extends StatelessWidget {
         const SizedBox(height: 17),
         SizedBox(
           height: cardWidth / .48,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, index) => SizedBox(
-              width: cardWidth,
-              child: StorefrontProductCard(product: products[index]),
-            ),
+          child: Stack(
+            children: [
+              ListView.separated(
+                controller: _scroll,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                scrollDirection: Axis.horizontal,
+                itemCount: products.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, index) => SizedBox(
+                  width: cardWidth,
+                  child: StorefrontProductCard(product: products[index]),
+                ),
+              ),
+              if (products.length > 2)
+                Positioned(
+                  right: 14,
+                  top: cardWidth * .6,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 1,
+                    child: IconButton(
+                      tooltip: 'Next products',
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => _move(1, cardWidth),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -709,6 +836,11 @@ class _Campaign extends StatelessWidget {
                       letterSpacing: 1.3,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'A Collection By FLEXWOLF',
+                    style: TextStyle(color: Colors.white, fontSize: 13),
+                  ),
                   const SizedBox(height: 19),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -747,45 +879,49 @@ class _PerformanceBanner extends StatelessWidget {
       pathParameters: const {'handle': 'best-seller'},
     ),
     child: SizedBox(
-      height: 470,
+      height: MediaQuery.sizeOf(context).width,
       child: Stack(
         fit: StackFit.expand,
         children: [
           const _HomeImage(
-            url: 'https://flexwolf.co/cdn/shop/files/new_banner_21.065.2026.png?v=1781989121&width=900',
+            url: 'https://flexwolf.co/cdn/shop/files/new_banner_21.065.2026_mobile.png?v=1781989756&width=900',
           ),
-          const ColoredBox(color: Color(0x77000000)),
+          const ColoredBox(color: Color(0x44000000)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(25, 0, 25, 35),
+            padding: const EdgeInsets.fromLTRB(25, 0, 25, 25),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
                   'LOOK BETTER.\nTRAIN HARDER.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 36,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 24,
+                    height: 1.25,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 17),
                 const Text(
                   'Premium athletic apparel engineered for comfort and performance.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white, fontSize: 13),
                 ),
-                const SizedBox(height: 19),
+                const SizedBox(height: 8),
                 const Text(
-                  '\u2713  BUILT FOR PERFORMANCE\n\u2713  DESIGNED FOR COMFORT\n\u2713  MADE TO MOVE',
+                  '\u2713 Sweat-Wicking\n\u2713 4-Way Stretch\n\u2713 Built for Training',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12,
-                    height: 2,
-                    fontWeight: FontWeight.w700,
+                    height: 1.6,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 23),
+                const SizedBox(height: 16),
                 Container(
                   color: Colors.white,
                   padding: const EdgeInsets.symmetric(
@@ -815,55 +951,98 @@ class _HomeFooter extends StatelessWidget {
   const _HomeFooter();
   @override
   Widget build(BuildContext context) => Container(
-    color: const Color(0xff151515),
-    padding: const EdgeInsets.fromLTRB(22, 30, 22, 32),
+    color: const Color(0xff202020),
+    padding: const EdgeInsets.fromLTRB(18, 14, 18, 32),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _FooterRow('CONNECT'),
-        const _FooterRow('ABOUT US'),
-        const SizedBox(height: 28),
-        const Text(
-          'FLEXWOLF',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 3,
+        _FooterRow('SHOP', [
+          ('All Products', () => context.goNamed(AppRouteNames.shop)),
+          (
+            'New Arrivals',
+            () => context.goNamed(
+              AppRouteNames.collection,
+              pathParameters: const {'handle': 'new-arrivals'},
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'TRAIN HARD. STAY WILD.',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 10,
-            letterSpacing: 2,
+          (
+            'Tank Tops',
+            () => context.goNamed(
+              AppRouteNames.collection,
+              pathParameters: const {'handle': 'gym-vest'},
+            ),
           ),
+        ]),
+        _FooterRow('SUPPORT', [
+          ('Contact Us', () => context.goNamed(AppRouteNames.support)),
+          ('Returns', () => _openStorePage('/policies/refund-policy')),
+          (
+            'Shipping Policy',
+            () => _openStorePage('/policies/shipping-policy'),
+          ),
+        ]),
+        _FooterRow('CONNECT', [
+          (
+            'Instagram',
+            () => _openUrl('https://www.instagram.com/flexwolf.co'),
+          ),
+          ('Facebook', () => _openUrl('https://www.facebook.com/flexwolf.co')),
+          ('YouTube', () => _openUrl('https://youtube.com/c/flexwolf_apparel')),
+        ]),
+        _FooterRow('ABOUT US', [
+          ('Our Story', () => _openStorePage('/pages/about-us')),
+          ('Contact', () => context.goNamed(AppRouteNames.support)),
+        ]),
+        const SizedBox(height: 30),
+        Image.asset(
+          'assets/images/home_payment_methods.jpg',
+          fit: BoxFit.fitWidth,
         ),
-        const SizedBox(height: 25),
+        const SizedBox(height: 24),
         const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.camera_alt_outlined, color: Colors.white, size: 23),
-            SizedBox(width: 22),
-            Icon(Icons.facebook, color: Colors.white, size: 23),
-            SizedBox(width: 22),
-            Icon(Icons.play_circle_outline, color: Colors.white, size: 23),
+            _SocialBadge('facebook', 'https://www.facebook.com/flexwolf.co'),
+            _SocialBadge('x', 'https://x.com/flexwolfusa'),
+            _SocialBadge('instagram', 'https://www.instagram.com/flexwolf.co'),
+            _SocialBadge('threads', 'https://threads.net/flexwolf.co'),
+            _SocialBadge('pinterest', 'https://pinterest.com/flexwolfusa'),
+            _SocialBadge('youtube', 'https://youtube.com/c/flexwolf_apparel'),
           ],
         ),
-        const SizedBox(height: 28),
-        const Text(
-          'SECURE PAYMENTS',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 10,
-            letterSpacing: 1,
-          ),
+        const SizedBox(height: 9),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _SocialBadge('tiktok', 'https://www.tiktok.com/@flexwolfusa'),
+            _SocialBadge(
+              'linkedin',
+              'https://www.linkedin.com/company/flexwolf',
+            ),
+            _SocialBadge(
+              'snapchat',
+              'https://www.snapchat.com/add/flexwolf.co',
+            ),
+          ],
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 26),
+        const Divider(color: Color(0xff5b5b5b)),
+        const SizedBox(height: 10),
         const Text(
-          '(c) FLEXWOLF',
-          style: TextStyle(color: Colors.white60, fontSize: 10),
+          '© 2026 | FLEXWOLF | All Rights Reserved. | Trust Like a Wolf.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white54, fontSize: 10),
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          children: [
+            _LegalLink('Refund policy', '/policies/refund-policy'),
+            _LegalLink('Privacy policy', '/policies/privacy-policy'),
+            _LegalLink('Terms of service', '/policies/terms-of-service'),
+            _LegalLink('Shipping policy', '/policies/shipping-policy'),
+          ],
         ),
       ],
     ),
@@ -871,11 +1050,15 @@ class _HomeFooter extends StatelessWidget {
 }
 
 class _FooterRow extends StatelessWidget {
-  const _FooterRow(this.label);
+  const _FooterRow(this.label, this.links);
   final String label;
+  final List<(String, VoidCallback)> links;
   @override
   Widget build(BuildContext context) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
+    childrenPadding: const EdgeInsets.only(bottom: 10),
+    collapsedShape: const Border(bottom: BorderSide(color: Color(0xff5b5b5b))),
+    shape: const Border(bottom: BorderSide(color: Color(0xff5b5b5b))),
     collapsedIconColor: Colors.white,
     iconColor: Colors.white,
     title: Text(
@@ -888,20 +1071,62 @@ class _FooterRow extends StatelessWidget {
       ),
     ),
     children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 18),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            label == 'CONNECT'
-                ? 'Follow FLEXWOLF on our social channels.'
-                : 'Performance apparel made for every training day.',
+      for (final link in links)
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            link.$1,
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
+          onTap: link.$2,
         ),
-      ),
     ],
   );
+}
+
+class _SocialBadge extends StatelessWidget {
+  const _SocialBadge(this.name, this.url);
+  final String name;
+  final String url;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: InkWell(
+      onTap: () => _openUrl(url),
+      customBorder: const CircleBorder(),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/home_social_$name.jpg',
+          width: 36,
+          height: 36,
+          fit: BoxFit.cover,
+        ),
+      ),
+    ),
+  );
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink(this.label, this.path);
+  final String label;
+  final String path;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: () => _openStorePage(path),
+    child: Text(
+      label,
+      style: const TextStyle(color: Colors.white54, fontSize: 10),
+    ),
+  );
+}
+
+Future<void> _openStorePage(String path) =>
+    _openUrl('https://flexwolf.co$path');
+
+Future<void> _openUrl(String url) async {
+  final uri = Uri.parse(url);
+  await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
 }
 
 class StorefrontProductCard extends ConsumerStatefulWidget {
@@ -1154,12 +1379,6 @@ class _StorefrontProductCardState extends ConsumerState<StorefrontProductCard> {
     ProductSummary product,
     ProductVariant variant,
   ) async {
-    final session = await requireCustomerSession(
-      context,
-      ref,
-      message: 'Sign in or create an account before adding items to your bag.',
-    );
-    if (session == null || !context.mounted) return;
     try {
       await ref
           .read(cartControllerProvider)

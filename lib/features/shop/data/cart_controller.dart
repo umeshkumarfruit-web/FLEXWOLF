@@ -48,11 +48,22 @@ class CartController extends ChangeNotifier {
   }
 
   Future<CartSummary> addLine(CartLineInput line) async {
+    return addLines(<CartLineInput>[line]);
+  }
+
+  Future<CartSummary> addLines(List<CartLineInput> lines) async {
+    if (lines.isEmpty) {
+      throw ArgumentError.value(
+        lines,
+        'lines',
+        'At least one cart line is required.',
+      );
+    }
     await restore();
     CartSummary? result;
     await _run(() async {
       await _ensureCart();
-      result = await _repository.addLines(_cart!.id, <CartLineInput>[line]);
+      result = await _repository.addLines(_cart!.id, lines);
       // Shopify mutations can occasionally return a partial cart payload while
       // the cart itself already contains the new line. Re-fetch in that case so
       // the bag never shows an item count without the corresponding products.
